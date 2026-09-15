@@ -1,0 +1,117 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  min-height: 100vh;
+  color: white;
+  padding: 15px;
+}
+
+h1 { text-align: center; font-size: 26px; margin-bottom: 5px; }
+.subtitle { text-align: center; opacity: 0.8; margin-bottom: 20px; font-size: 14px; }
+
+.container { max-width: 500px; margin: 0 auto; }
+
+.caller {
+  background: rgba(255,255,255,0.15);
+  border-radius: 15px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.last-called {
+  font-size: 70px;
+  font-weight: bold;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255,215,0,0.5);
+  min-height: 85px;
+}
+
+.btn-call {
+  background: #ffd700;
+  color: #333;
+  border: none;
+  padding: 14px 35px;
+  border-radius: 30px;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.btn-call:active { transform: scale(0.95); }
+.btn-call:disabled { opacity: 0.5; }
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.cell {
+  background: rgba(255,255,255,0.95);
+  color: #333;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+  user-select: none;
+}
+
+.cell.marked {
+  background: #ffd700;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(255,215,0,0.6);
+}
+
+.cell.free { background: #ff6b6b; color: white; font-size: 14px; }
+
+#status {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffd700;
+  min-height: 35px;
+  margin-bottom: 15px;
+}
+
+.actions {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.actions button {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.history {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.history span {
+  display: inline-block;
+  background: rgba(255,255,255,0.2);
+  padding: 3px 9px;
+  margin: 2px;
+  border-radius: 12px;
+  }
