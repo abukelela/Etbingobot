@@ -10,6 +10,8 @@
 <body>
 
 <div class="container">
+
+  <!-- Top Bar -->
   <div class="header-bar">
     <div class="header-left">
       <div class="player-info" id="playerInfo">👤 ተጫዋች</div>
@@ -18,18 +20,56 @@
     <div class="called-badge" id="calledBadge">📢 0/75</div>
   </div>
 
-  <div class="caller">
-    <div class="last-called-label">🎯 የተጠራው ቁጥር</div>
-    <div class="last-called" id="lastCalled">—</div>
-    <div class="auto-status" id="autoStatus"></div>
+  <!-- No Game Screen -->
+  <div id="noGameScreen" class="screen">
+    <div class="empty-icon">🎱</div>
+    <h2>እንኳን ደህና መጡ!</h2>
+    <p class="empty-text">አዲስ ጨዋታ ለመጀመር ከታች ይጫኑ</p>
+    <button class="btn-primary" onclick="createGame()">
+      <span>🎮</span> አዲስ ጨዋታ ጀምር
+    </button>
   </div>
 
-  <div id="status"></div>
+  <!-- Join Screen -->
+  <div id="joinScreen" class="screen" style="display:none">
+    <div class="empty-icon">🎫</div>
+    <h2>ጨዋታ ተጀምሯል!</h2>
+    <p class="empty-text">
+      👥 <span id="joinPlayerCount">0</span> ተጫዋቾች ተቀላቅለዋል
+    </p>
+    <button class="btn-primary" onclick="joinGame()">
+      <span>✋</span> ተቀላቀል
+    </button>
+  </div>
 
-  <div id="board"></div>
+  <!-- Game Screen -->
+  <div id="gameScreen" class="screen" style="display:none">
+    <div class="caller">
+      <div class="last-called-label">🎯 የተጠራው ቁጥር</div>
+      <div class="last-called" id="lastCalled">—</div>
+      <div class="auto-status" id="autoStatus"></div>
+    </div>
 
-  <div class="history-title">📜 ታሪክ</div>
-  <div class="history" id="history"></div>
+    <div class="game-controls">
+      <button class="btn-auto" id="autoBtn" onclick="toggleAuto()">
+        <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር</span>
+      </button>
+      <button class="btn-call" id="callBtn" onclick="drawNumber()">
+        <span>🔢</span> ጥራ
+      </button>
+      <button class="btn-new" onclick="confirmNewGame()">
+        <span>🔄</span>
+      </button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="board"></div>
+
+    <div class="history-title">📜 ታሪክ</div>
+    <div class="history" id="history"></div>
+  </div>
+
 </div>
 
 <div id="confetti"></div>
