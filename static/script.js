@@ -4,21 +4,31 @@ let calledNumbers = [];
 let availableNumbers = [];
 let gameOver = false;
 let autoRunning = false;
-let autoTimer = null;
 let countdownTimer = null;
 let countdown = 5;
+let selectedNumbers = [];
 
-function initGame() {
+const MAX_NUMBER = 144;
+const CARD_SIZE = 24;
+
+function randomCard() {
+  if (!confirm('በዘፈቀደ ካርድ ይፈጠር?')) return;
+
   const nums = new Set();
   while (nums.size < 25) {
-    nums.add(Math.floor(Math.random() * 75) + 1);
+    nums.add(Math.floor(Math.random() * MAX_NUMBER) + 1);
   }
   board = [...nums];
-  marked = Array(25).fill(false);
+  marked = new Array(25).fill(false);
   marked[12] = true;
 
+  resetGameState();
+  renderBoard();
+}
+
+function resetGameState() {
   availableNumbers = [];
-  for (let i = 1; i <= 75; i++) availableNumbers.push(i);
+  for (let i = 1; i <= MAX_NUMBER; i++) availableNumbers.push(i);
   calledNumbers = [];
   gameOver = false;
   stopAuto();
@@ -30,7 +40,113 @@ function initGame() {
   document.getElementById('history').innerHTML = '';
   document.getElementById('confetti').innerHTML = '';
   document.getElementById('timer').textContent = '';
+}
 
+function openPicker() {
+  selectedNumbers = [];
+  renderPicker();
+  document.getElementById('pickerModal').classList.add('open');
+  updatePickerCount();
+}
+
+function closePicker(event) {
+  if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) {
+    return;
+  }
+  document.getElementById('pickerModal').classList.remove('open');
+}
+
+function renderPicker() {
+  const grid = document.getElementById('pickerGrid');
+  grid.innerHTML = '';
+
+  for (let i = 1; i <= MAX_NUMBER; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'picker-cell';
+    cell.textContent = i;
+    cell.dataset.num = i;
+    if (selectedNumbers.includes(i)) cell.classList.add('selected');
+    cell.onclick = () => togglePickerNumber(i);
+    grid.appendChild(cell);
+  }
+}
+
+function togglePickerNumber(num) {
+  const idx = selectedNumbers.indexOf(num);
+  if (idx >= 0) {
+    selectedNumbers.splice(idx, 1);
+  } else {
+    if (selectedNumbers.length >= CARD_SIZE) {
+      showPickerHint('⚠️ ከ 24 በላይ መምረጥ አይቻልም!');
+      return;
+    }
+    selectedNumbers.push(num);
+  }
+  renderPicker();
+  updatePickerCount();
+}
+
+function updatePickerCount() {
+  document.getElementById('selectedCount').textContent = selectedNumbers.length;
+  document.getElementById('confirmBtn').disabled = selectedNumbers.length !== CARD_SIZE;
+}
+
+function showPickerHint(msg) {
+  const hint = document.querySelector('.picker-hint');
+  const original = hint.textContent;
+  hint.textContent = msg;
+  hint.style.color = '#ff6b6b';
+  setTimeout(() => {
+    hint.textContent = original;
+    hint.style.color = '';
+  }, 1500);
+}
+
+function clearSelection() {
+  selectedNumbers = [];
+  renderPicker();
+  updatePickerCount();
+}
+
+function confirmCard() {
+  if (selectedNumbers.length !== CARD_SIZE) return;
+
+  const sorted = [...selectedNumbers].sort((a, b) => a - b);
+
+  board = [];
+  let idx = 0;
+  for (let r = 0; r < 5; r++) {
+    const row = [];
+    for (let c = 0; c < 5; c++) {
+      if (r === 2 && c === 2) {
+        row.push('FREE');
+      } else {
+        row.push(sorted[idx]);
+        idx++;
+      }
+    }
+    board.push(row);
+  }
+
+  board = board.flat();
+  marked = new Array(25).fill(false);
+  marked[12] = true;
+
+  closePicker();
+  resetGameState();
+  renderBoard();
+}
+
+function initGame() {
+  const nums = new Set();
+  while (nums.size < 25) {
+    nums.add(Math.floor(Math.random() * MAX_NUMBER) + 1);
+  }
+  board = [...nums];
+  marked = new Array(25).fill(false);
+  marked[12] = true;
+
+  resetGameState();
   renderBoard();
 }
 
@@ -49,7 +165,7 @@ function renderBoard() {
   board.forEach((num, i) => {
     const cell = document.createElement('div');
     cell.className = 'cell';
-    if (i === 12) {
+    if (i === 12 || num === 'FREE') {
       cell.textContent = 'FREE';
       cell.classList.add('free');
     } else {
@@ -62,7 +178,7 @@ function renderBoard() {
 }
 
 function toggleCell(i, num) {
-  if (i === 12 || gameOver) return;
+  if (i === 12 || num === 'FREE' || gameOver) return;
   if (!calledNumbers.includes(num) && !marked[i]) {
     showAlert('⚠️ ይህ ቁጥር ገና አልተጠራም!');
     return;
@@ -101,11 +217,8 @@ function callNumber() {
 }
 
 function toggleAuto() {
-  if (autoRunning) {
-    stopAuto();
-  } else {
-    startAuto();
-  }
+  if (autoRunning) stopAuto();
+  else startAuto();
 }
 
 function startAuto() {
@@ -129,9 +242,10 @@ function scheduleNext() {
     updateTimerDisplay();
     if (countdown <= 0) {
       clearInterval(countdownTimer);
+      countdownTimer = null;
       if (autoRunning) {
         callNumber();
-        if (autoRunning && availableNumbers.length > 0) {
+        if (autoRunning && availableNumbers.length > 0 && !gameOver) {
           scheduleNext();
         } else {
           stopAuto();
@@ -152,7 +266,6 @@ function updateTimerDisplay() {
 function stopAuto() {
   autoRunning = false;
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
   const btn = document.getElementById('autoBtn');
   if (btn) {
     btn.classList.remove('running');
@@ -194,7 +307,7 @@ function highlightWinningLine(line) {
 function launchConfetti() {
   const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
   const container = document.getElementById('confetti');
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 120; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
     piece.style.left = Math.random() * 100 + '%';
@@ -212,6 +325,43 @@ function showAlert(msg) {
   const original = statusEl.textContent;
   statusEl.textContent = msg;
   setTimeout(() => { statusEl.textContent = original; }, 1500);
+}
+
+function openBoard() {
+  const modal = document.getElementById('boardModal');
+  const grid = document.getElementById('boardGrid');
+  const stats = document.getElementById('modalStats');
+
+  grid.innerHTML = '';
+
+  stats.innerHTML = `
+    <div>📢 የተጠሩ: <span>${calledNumbers.length}</span></div>
+    <div>⏳ የቀሩ: <span>${availableNumbers.length}</span></div>
+  `;
+
+  const lastCalled = calledNumbers.length > 0 ? calledNumbers[calledNumbers.length - 1] : null;
+
+  for (let i = 1; i <= MAX_NUMBER; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'num-cell';
+    cell.textContent = i;
+
+    if (calledNumbers.includes(i)) {
+      cell.classList.add('called');
+      if (i === lastCalled) cell.classList.add('latest');
+    }
+
+    grid.appendChild(cell);
+  }
+
+  modal.classList.add('open');
+}
+
+function closeBoard(event) {
+  if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) {
+    return;
+  }
+  document.getElementById('boardModal').classList.remove('open');
 }
 
 function newGame() {
