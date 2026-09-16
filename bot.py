@@ -1,6 +1,7 @@
 import random
 import logging
 import os
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -188,6 +189,10 @@ async def end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🛑 ጨዋታው ተጠናቅቋል። /play በማለት አዲስ ጀምር።")
 
 def run_bot():
+    # አዲስ event loop ፍጠር (ለ thread ውስጥ አስፈላጊ!)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("play", play))
