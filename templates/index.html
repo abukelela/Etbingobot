@@ -17,10 +17,17 @@
   </div>
 
   <div class="caller">
-    <div class="last-called" id="lastCalled">—</div>
-    <button class="btn-call" id="callBtn" onclick="callNumber()">
-      <span>🔢</span> ቁጥር ጥራ
-    </button>
+    <div class="last-called" id="lastCalled"></div>
+    <div class="timer" id="timer"></div>
+    
+    <div class="caller-buttons">
+      <button class="btn-auto" id="autoBtn" onclick="toggleAuto()">
+        <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር ጀምር</span>
+      </button>
+      <button class="btn-call" id="callBtn" onclick="callNumber()">
+        <span>🔢</span> ጥራ
+      </button>
+    </div>
   </div>
 
   <div id="status"></div>
