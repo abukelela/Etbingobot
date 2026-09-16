@@ -2,6 +2,7 @@ let board = [];
 let marked = [];
 let calledNumbers = [];
 let availableNumbers = [];
+let gameOver = false;
 
 function initGame() {
   const nums = new Set();
@@ -15,11 +16,14 @@ function initGame() {
   availableNumbers = [];
   for (let i = 1; i <= 75; i++) availableNumbers.push(i);
   calledNumbers = [];
+  gameOver = false;
 
   document.getElementById('lastCalled').textContent = '—';
   document.getElementById('status').textContent = '';
+  document.getElementById('status').classList.remove('bingo');
   document.getElementById('callBtn').disabled = false;
   document.getElementById('history').innerHTML = '';
+  document.getElementById('confetti').innerHTML = '';
 
   renderBoard();
 }
@@ -27,6 +31,17 @@ function initGame() {
 function renderBoard() {
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
+
+  // B I N G O ራስጌ
+  const headers = ['B', 'I', 'N', 'G', 'O'];
+  headers.forEach(letter => {
+    const header = document.createElement('div');
+    header.className = 'header';
+    header.textContent = letter;
+    boardEl.appendChild(header);
+  });
+
+  // ካርድ
   board.forEach((num, i) => {
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -43,9 +58,9 @@ function renderBoard() {
 }
 
 function toggleCell(i, num) {
-  if (i === 12) return;
+  if (i === 12 || gameOver) return;
   if (!calledNumbers.includes(num) && !marked[i]) {
-    alert('ይህ ቁጥር ገና አልተጠራም!');
+    showAlert('⚠️ ይህ ቁጥር ገና አልተጠራም!');
     return;
   }
   marked[i] = !marked[i];
@@ -62,7 +77,11 @@ function callNumber() {
   const num = availableNumbers.splice(idx, 1)[0];
   calledNumbers.push(num);
 
-  document.getElementById('lastCalled').textContent = num;
+  const el = document.getElementById('lastCalled');
+  el.textContent = num;
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
 
   const hist = document.getElementById('history');
   const span = document.createElement('span');
@@ -84,10 +103,45 @@ function checkBingo() {
 
   for (const line of lines) {
     if (line.every(i => marked[i])) {
-      document.getElementById('status').textContent = '🎉 BINGO! አሸንፈሃል!';
+      gameOver = true;
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = '🎉 BINGO! አሸንፈሃል!';
+      statusEl.classList.add('bingo');
+      highlightWinningLine(line);
+      launchConfetti();
       return;
     }
   }
+}
+
+function highlightWinningLine(line) {
+  const cells = document.querySelectorAll('.cell');
+  line.forEach(i => {
+    if (cells[i]) cells[i].classList.add('winning');
+  });
+}
+
+function launchConfetti() {
+  const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
+  const container = document.getElementById('confetti');
+  for (let i = 0; i < 100; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.top = '-10px';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDelay = Math.random() * 0.5 + 's';
+    piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+    container.appendChild(piece);
+  }
+}
+
+function showAlert(msg) {
+  const statusEl = document.getElementById('status');
+  const original = statusEl.textContent;
+  statusEl.textContent = msg;
+  setTimeout(() => { statusEl.textContent = original; }, 1500);
 }
 
 function newGame() {
