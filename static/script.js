@@ -18,7 +18,7 @@ function initGame() {
   calledNumbers = [];
   gameOver = false;
 
-  document.getElementById('lastCalled').textContent = '—';
+  document.getElementById('lastCalled').textContent = '';
   document.getElementById('status').textContent = '';
   document.getElementById('status').classList.remove('bingo');
   document.getElementById('callBtn').disabled = false;
