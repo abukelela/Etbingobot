@@ -10,64 +10,30 @@
 <body>
 
 <div class="container">
-  <div class="title-bar">
-    <span class="bingo-ball">🎱</span>
-    <h1>Beteseb Bingo</h1>
-  </div>
-
-  <div class="top-controls">
-    <div class="players-control">
-      <span class="ps-label">👥 ተጫዋቾች</span>
-      <div class="players-buttons" id="playersButtons"></div>
+  <div class="header-bar">
+    <div class="header-left">
+      <div class="player-info" id="playerInfo">👤 ተጫዋች</div>
+      <div class="player-count" id="playerCount">👥 0</div>
     </div>
+    <div class="called-badge" id="calledBadge">📢 0/75</div>
   </div>
 
   <div class="caller">
-    <div class="called-label">📢 የተጠሩ: <span id="calledCount">0/75</span></div>
-    <div class="last-called" id="lastCalled"></div>
-    <div class="timer" id="timer"></div>
-
-    <div class="caller-buttons">
-      <button class="btn-auto" id="autoBtn" onclick="toggleAuto()">
-        <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር</span>
-      </button>
-      <button class="btn-call" id="callBtn" onclick="callNumber()">
-        <span>🔢</span> ጥራ
-      </button>
-    </div>
+    <div class="last-called-label">🎯 የተጠራው ቁጥር</div>
+    <div class="last-called" id="lastCalled">—</div>
+    <div class="auto-status" id="autoStatus"></div>
   </div>
 
   <div id="status"></div>
 
-  <div id="boards" class="boards"></div>
+  <div id="board"></div>
 
-  <div class="actions">
-    <button onclick="openBoard()">
-      <span>📊</span> የተጠሩ ቁጥሮች
-    </button>
-    <button onclick="newGame()">
-      <span>🔄</span> አዲስ ጨዋታ
-    </button>
-  </div>
-
-  <div class="history-title">📜 የተጠሩ ቁጥሮች</div>
+  <div class="history-title">📜 ታሪክ</div>
   <div class="history" id="history"></div>
-</div>
-
-<!-- የተጠሩ ቁጥሮች Modal -->
-<div id="boardModal" class="modal" onclick="closeBoard(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h2>📊 የተጠሩ ቁጥሮች (1-75)</h2>
-      <button class="modal-close" onclick="closeBoard()">✕</button>
-    </div>
-    <div class="modal-stats" id="modalStats"></div>
-    <div class="number-grid" id="boardGrid"></div>
-  </div>
 </div>
 
 <div id="confetti"></div>
 
 <script src="/static/script.js"></script>
 </body>
-      </html>
+</html>
