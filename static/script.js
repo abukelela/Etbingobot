@@ -1,33 +1,43 @@
-// ===== Telegram WebApp init =====
+// ===== Telegram init =====
 let chatId = 0;
 let userId = 0;
+let userName = 'ተጫዋች';
 
-function initTelegramIds() {
+function initTelegram() {
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
     const initData = tg.initDataUnsafe || {};
+    console.log('TG initData:', JSON.stringify(initData));
 
-    // User ID from Telegram
     if (initData.user && initData.user.id) {
       userId = initData.user.id;
+      userName = initData.user.first_name || 'ተጫዋች';
     }
 
-    // Chat ID from the chat we are in
     if (initData.chat && initData.chat.id) {
       chatId = initData.chat.id;
     }
   }
 
-  // Fallback: URL params (for testing in browser)
+  // Fallback URL params
   const params = new URLSearchParams(window.location.search);
-  if (!chatId) chatId = parseInt(params.get('chat') || '0');
-  if (!userId) userId = parseInt(params.get('user') || '0');
+  const urlChat = parseInt(params.get('chat') || '0');
+  const urlUser = parseInt(params.get('user') || '0');
+  if (!chatId && urlChat) chatId = urlChat;
+  if (!userId && urlUser) userId = urlUser;
+
+  // Fallback: ከ BotFather ከተከፈተ — userId ን chatId አድርገው
+  if (!chatId && userId) {
+    chatId = userId;
+  }
+
+  console.log('Final chatId:', chatId, 'userId:', userId);
 }
 
-initTelegramIds();
+initTelegram();
 
 // ===== State =====
 let card = null;
@@ -35,38 +45,142 @@ let markedSet = new Set();
 let lastCalled = null;
 let gameOver = false;
 let calledHistory = [];
-let playerName = '';
+let currentScreen = 'loading';
 
-async function fetchState() {
-  if (!chatId || !userId) {
-    document.getElementById('status').textContent = '⚠️ ከ Telegram ቡድን ውስጥ ይክፈቱ';
+// ===== Screens =====
+function showScreen(name) {
+  if (currentScreen === name) return;
+  currentScreen = name;
+  document.getElementById('noGameScreen').style.display = 'none';
+  document.getElementById('joinScreen').style.display = 'none';
+  document.getElementById('gameScreen').style.display = 'none';
+
+  if (name === 'noGame') document.getElementById('noGameScreen').style.display = 'block';
+  else if (name === 'join') document.getElementById('joinScreen').style.display = 'block';
+  else if (name === 'game') document.getElementById('gameScreen').style.display = 'block';
+}
+
+function showMessage(msg) {
+  const statusEl = document.getElementById('status');
+  if (statusEl) {
+    statusEl.textContent = msg;
+    statusEl.style.color = '#ff9500';
+    setTimeout(() => {
+      statusEl.textContent = '';
+      statusEl.style.color = '';
+    }, 2500);
+  }
+}
+
+// ===== Actions =====
+async function createGame() {
+  if (!chatId) {
+    showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ');
     return;
   }
   try {
+    const r = await fetch('/api/newgame', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat: chatId })
+    });
+    if (r.ok) {
+      await fetchState();
+    } else {
+      showMessage('⚠️ ጨዋታ መፍጠር አልተቻለም');
+    }
+  } catch (e) {
+    showMessage('⚠️ የኢንተርኔት ችግር');
+  }
+}
+
+async function joinGame() {
+  if (!chatId || !userId) {
+    showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ');
+    return;
+  }
+  try {
+    const r = await fetch('/api/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat: chatId, user: userId, name: userName })
+    });
+    if (r.ok) await fetchState();
+    else showMessage('⚠️ መቀላቀል አልተቻለም');
+  } catch (e) {
+    showMessage('⚠️ የኢንተርኔት ችግር');
+  }
+}
+
+async function drawNumber() {
+  if (!chatId) return;
+  try {
+    await fetch('/api/draw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat: chatId })
+    });
+    await fetchState();
+  } catch (e) {
+    console.error('Draw error:', e);
+  }
+}
+
+async function toggleAuto() {
+  if (!chatId) return;
+  try {
+    await fetch('/api/toggle_auto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat: chatId })
+    });
+    await fetchState();
+  } catch (e) {
+    console.error('Auto error:', e);
+  }
+}
+
+function confirmNewGame() {
+  if (confirm('አዲስ ጨዋታ ጀምር? ሁሉም ተጫዋቾች ይወገዳሉ!')) {
+    createGame();
+  }
+}
+
+// ===== State sync =====
+async function fetchState() {
+  if (!chatId) {
+    showScreen('noGame');
+    return;
+  }
+
+  try {
     const r = await fetch(`/api/state?chat=${chatId}&user=${userId}`);
     const data = await r.json();
+
     if (data.error === 'no_game') {
-      document.getElementById('status').textContent = '⚠️ ጨዋታ የለም — /newgame ይላኩ';
+      showScreen('noGame');
       return;
     }
-    if (data.error === 'no_player') {
-      document.getElementById('status').textContent = '⚠️ አልተቀላቀሉም — /join ይላኩ';
-      return;
-    }
-    if (data.error) {
-      document.getElementById('status').textContent = '⚠️ ስህተት: ' + data.error;
-      return;
-    }
+    if (data.error) return;
 
-    card = data.card;
-    playerName = data.player_name || 'ተጫዋች';
-
-    document.getElementById('playerInfo').textContent = '👤 ' + playerName;
-    document.getElementById('playerCount').textContent = '👥 ' + data.player_count + ' ተጫዋቾች';
+    // Update header
+    document.getElementById('playerCount').textContent = '👥 ' + data.player_count;
     document.getElementById('calledBadge').textContent = '📢 ' + data.called_count + '/75';
-    document.getElementById('autoStatus').textContent = data.auto ? '🤖 ራስ-ሰር እየሰራ ነው' : '';
 
-    // Marked set
+    // Need join?
+    if (data.needs_join) {
+      document.getElementById('joinPlayerCount').textContent = data.player_count;
+      showScreen('join');
+      return;
+    }
+
+    // In game
+    showScreen('game');
+
+    document.getElementById('playerInfo').textContent = '👤 ' + (data.player_name || 'ተጫዋች');
+
+    // Card
+    card = data.card;
     markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
 
     // Last called
@@ -79,6 +193,20 @@ async function fetchState() {
       el.classList.add('pulse');
     } else if (!data.last) {
       document.getElementById('lastCalled').textContent = '—';
+    }
+
+    // Auto status
+    const autoBtn = document.getElementById('autoBtn');
+    if (data.auto) {
+      autoBtn.classList.add('running');
+      document.getElementById('autoIcon').textContent = '⏸️';
+      document.getElementById('autoText').textContent = 'አቁም';
+      document.getElementById('autoStatus').textContent = '🤖 ራስ-ሰር እየሰራ ነው';
+    } else {
+      autoBtn.classList.remove('running');
+      document.getElementById('autoIcon').textContent = '▶️';
+      document.getElementById('autoText').textContent = 'ራስ-ሰር';
+      document.getElementById('autoStatus').textContent = '';
     }
 
     // History
@@ -109,6 +237,7 @@ async function fetchState() {
   }
 }
 
+// ===== Render =====
 function renderBoard() {
   if (!card) return;
   const boardEl = document.getElementById('board');
@@ -143,6 +272,7 @@ function renderBoard() {
 async function clickCell(r, c) {
   if (!card || gameOver) return;
   if (card[r][c] === 'FREE') return;
+
   try {
     const resp = await fetch('/api/mark', {
       method: 'POST',
@@ -152,10 +282,7 @@ async function clickCell(r, c) {
     const data = await resp.json();
     if (data.error) {
       if (data.error === 'not_called') {
-        const statusEl = document.getElementById('status');
-        const orig = statusEl.textContent;
-        statusEl.textContent = '⚠️ ገና አልተጠራም!';
-        setTimeout(() => { statusEl.textContent = orig; }, 1200);
+        showMessage('⚠️ ገና አልተጠራም!');
       }
       return;
     }
@@ -191,8 +318,6 @@ function launchConfetti() {
   }
 }
 
-// Initial fetch
+// ===== Start =====
 fetchState();
-
-// Poll every 2 seconds
 setInterval(fetchState, 2000);
