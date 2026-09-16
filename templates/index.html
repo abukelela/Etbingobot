@@ -10,23 +10,34 @@
 <body>
 
 <div class="container">
-  <h1>🎱 Beteseb Bingo</h1>
-  <p class="subtitle">የቤተሰብ ቢንጎ ጨዋታ</p>
+  <div class="title-bar">
+    <span class="bingo-ball">🎱</span>
+    <h1>Beteseb Bingo</h1>
+    <p class="subtitle">የቤተሰብ ቢንጎ ጨዋታ</p>
+  </div>
 
   <div class="caller">
     <div class="last-called" id="lastCalled">—</div>
-    <button class="btn-call" id="callBtn" onclick="callNumber()">🔢 ቁጥር ጥራ</button>
+    <button class="btn-call" id="callBtn" onclick="callNumber()">
+      <span>🔢</span> ቁጥር ጥራ
+    </button>
   </div>
 
   <div id="status"></div>
+
   <div id="board"></div>
 
   <div class="actions">
-    <button onclick="newGame()">🔄 አዲስ ጨዋታ</button>
+    <button onclick="newGame()">
+      <span>🔄</span> አዲስ ጨዋታ
+    </button>
   </div>
 
+  <div class="history-title">📜 የተጠሩ ቁጥሮች</div>
   <div class="history" id="history"></div>
 </div>
+
+<div id="confetti"></div>
 
 <script src="/static/script.js"></script>
 </body>
