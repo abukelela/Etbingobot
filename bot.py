@@ -35,7 +35,7 @@ def generate_bingo_card():
 def format_card(card, marked=None):
     if marked is None:
         marked = set()
-    text = "🎱 **B I N G O ካርድ**\n"
+    text = "🎱 B I N G O ካርድ\n"
     text += "┌────┬────┬────┬────┬────┐\n"
     for r, row in enumerate(card):
         line = "│"
@@ -68,7 +68,7 @@ def check_bingo(card, marked):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    
+
     keyboard = [[
         InlineKeyboardButton(
             "🎮 ጨዋታ ክፈት",
@@ -76,20 +76,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     ]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
+
+    text = (
         f"👋 ሰላም {user.first_name}!\n\n"
-        f"🎱 **Beteseb Bingo** እንኳን ደህና መጣህ!\n\n"
-        f"📌 **ትዕዛዞች፦**\n"
-        f"/play — የጨዋታ ካርድ ስጠኝ\n"
-        f"/draw — ቀጣይ ቁጥር ጥራ\n"
-        f"/card — የእኔን ካርድ አሳይ\n"
-        f"/numbers — የተጠሩ ቁጥሮች ዝርዝር\n"
-        f"/end — ጨዋታውን ጨርስ\n\n"
-        f"👇 ወይም ድረ-ገጹን ክፈት፦",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
+        f"🎱 Beteseb Bingo እንኳን ደህና መጣህ!\n\n"
+        f"📌 ትዕዛዞች:\n"
+        f"/play - የጨዋታ ካርድ ስጠኝ\n"
+        f"/draw - ቀጣይ ቁጥር ጥራ\n"
+        f"/card - የእኔን ካርድ አሳይ\n"
+        f"/numbers - የተጠሩ ቁጥሮች ዝርዝር\n"
+        f"/end - ጨዋታውን ጨርስ\n\n"
+        f"👇 ወይም ድረ-ገጹን ክፈት:"
     )
+
+    await update.message.reply_text(text, reply_markup=reply_markup)
 
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -109,8 +109,7 @@ async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
         p = game['players'][user_id]
         await update.message.reply_text(
             "⚠️ አስቀድመህ ካርድ አለህ!\n\n" +
-            format_card(p['card'], p['marked']),
-            parse_mode='Markdown'
+            format_card(p['card'], p['marked'])
         )
         return
 
@@ -122,8 +121,7 @@ async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     await update.message.reply_text(
-        f"✅ **{user_name}** ተቀላቅሏል!\n\n" + format_card(card),
-        parse_mode='Markdown'
+        f"✅ {user_name} ተቀላቅሏል!\n\n" + format_card(card)
     )
 
 async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -150,14 +148,14 @@ async def draw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if check_bingo(p['card'], p['marked']):
             winners.append(p['name'])
 
-    text = f"🔢 **ቁጥር ተጠራ: {num}**\n"
+    text = f"🔢 ቁጥር ተጠራ: {num}\n"
     text += f"📊 የጠራ ብዛት: {len(game['called'])}/75\n"
 
     if winners:
-        text += f"\n🎉🎉 **BINGO!** 🎉🎉\n"
+        text += f"\n🎉🎉 BINGO! 🎉🎉\n"
         text += f"🏆 አሸናፊ: {', '.join(winners)}\n"
 
-    await update.message.reply_text(text, parse_mode='Markdown')
+    await update.message.reply_text(text)
 
 async def card(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -167,8 +165,7 @@ async def card(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     p = games[chat_id]['players'][user_id]
     await update.message.reply_text(
-        format_card(p['card'], p['marked']),
-        parse_mode='Markdown'
+        format_card(p['card'], p['marked'])
     )
 
 async def numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -177,9 +174,9 @@ async def numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📭 እስካሁን ምንም ቁጥር አልተጠራም።")
         return
     called = games[chat_id]['called']
-    text = f"📋 **የተጠሩ ቁጥሮች** ({len(called)}/75)\n\n"
+    text = f"📋 የተጠሩ ቁጥሮች ({len(called)}/75)\n\n"
     text += " • ".join(str(n) for n in sorted(called))
-    await update.message.reply_text(text, parse_mode='Markdown')
+    await update.message.reply_text(text)
 
 async def end(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
