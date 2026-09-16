@@ -1,7 +1,35 @@
-const params = new URLSearchParams(window.location.search);
-const chatId = parseInt(params.get('chat') || '0');
-const userId = parseInt(params.get('user') || '0');
+// ===== Telegram WebApp init =====
+let chatId = 0;
+let userId = 0;
 
+function initTelegramIds() {
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const initData = tg.initDataUnsafe || {};
+
+    // User ID from Telegram
+    if (initData.user && initData.user.id) {
+      userId = initData.user.id;
+    }
+
+    // Chat ID from the chat we are in
+    if (initData.chat && initData.chat.id) {
+      chatId = initData.chat.id;
+    }
+  }
+
+  // Fallback: URL params (for testing in browser)
+  const params = new URLSearchParams(window.location.search);
+  if (!chatId) chatId = parseInt(params.get('chat') || '0');
+  if (!userId) userId = parseInt(params.get('user') || '0');
+}
+
+initTelegramIds();
+
+// ===== State =====
 let card = null;
 let markedSet = new Set();
 let lastCalled = null;
@@ -11,14 +39,22 @@ let playerName = '';
 
 async function fetchState() {
   if (!chatId || !userId) {
-    document.getElementById('status').textContent = '⚠️ Telegram ውስጥ ብቻ ይሰራል';
+    document.getElementById('status').textContent = '⚠️ ከ Telegram ቡድን ውስጥ ይክፈቱ';
     return;
   }
   try {
     const r = await fetch(`/api/state?chat=${chatId}&user=${userId}`);
     const data = await r.json();
+    if (data.error === 'no_game') {
+      document.getElementById('status').textContent = '⚠️ ጨዋታ የለም — /newgame ይላኩ';
+      return;
+    }
+    if (data.error === 'no_player') {
+      document.getElementById('status').textContent = '⚠️ አልተቀላቀሉም — /join ይላኩ';
+      return;
+    }
     if (data.error) {
-      document.getElementById('status').textContent = '⚠️ ጨዋታ አልተገኘም';
+      document.getElementById('status').textContent = '⚠️ ስህተት: ' + data.error;
       return;
     }
 
@@ -30,7 +66,7 @@ async function fetchState() {
     document.getElementById('calledBadge').textContent = '📢 ' + data.called_count + '/75';
     document.getElementById('autoStatus').textContent = data.auto ? '🤖 ራስ-ሰር እየሰራ ነው' : '';
 
-    // Marked
+    // Marked set
     markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
 
     // Last called
@@ -114,7 +150,15 @@ async function clickCell(r, c) {
       body: JSON.stringify({ chat: chatId, user: userId, r: r, c: c })
     });
     const data = await resp.json();
-    if (data.error) return;
+    if (data.error) {
+      if (data.error === 'not_called') {
+        const statusEl = document.getElementById('status');
+        const orig = statusEl.textContent;
+        statusEl.textContent = '⚠️ ገና አልተጠራም!';
+        setTimeout(() => { statusEl.textContent = orig; }, 1200);
+      }
+      return;
+    }
 
     markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
     renderBoard();
@@ -145,12 +189,6 @@ function launchConfetti() {
     piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
     container.appendChild(piece);
   }
-}
-
-// Telegram Web App
-if (window.Telegram && window.Telegram.WebApp) {
-  window.Telegram.WebApp.ready();
-  window.Telegram.WebApp.expand();
 }
 
 // Initial fetch
