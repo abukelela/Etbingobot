@@ -51,6 +51,56 @@ body {
   box-shadow: 0 3px 10px rgba(255,215,0,0.4);
 }
 
+/* Screens */
+.screen {
+  animation: fadeIn 0.4s ease;
+}
+
+.empty-icon {
+  font-size: 70px;
+  text-align: center;
+  margin: 30px 0 10px;
+  animation: bounce 2s infinite;
+}
+
+.screen h2 {
+  text-align: center;
+  font-size: 22px;
+  margin-bottom: 10px;
+  color: #ffd700;
+  text-shadow: 0 0 15px rgba(255,215,0,0.6);
+}
+
+.empty-text {
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 20px;
+}
+
+.btn-primary {
+  display: block;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #ffd700, #ff9500);
+  color: #333;
+  border: none;
+  padding: 16px 40px;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(255,215,0,0.5);
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-primary:active {
+  transform: scale(0.95);
+  box-shadow: 0 4px 15px rgba(255,215,0,0.7);
+}
+
 /* Caller */
 .caller {
   background: rgba(255,255,255,0.15);
@@ -91,6 +141,56 @@ body {
   margin-top: 4px;
 }
 
+/* Game controls */
+.game-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-call, .btn-auto, .btn-new {
+  border: none;
+  padding: 12px 20px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-call {
+  background: linear-gradient(135deg, #ffd700, #ff9500);
+  color: #333;
+  box-shadow: 0 6px 20px rgba(255,215,0,0.4);
+}
+
+.btn-auto {
+  background: linear-gradient(135deg, #27ae60, #229954);
+  color: white;
+  box-shadow: 0 6px 20px rgba(39,174,96,0.4);
+}
+
+.btn-new {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 12px 16px;
+}
+
+.btn-call:active, .btn-auto:active, .btn-new:active {
+  transform: scale(0.95);
+}
+
+.btn-auto.running {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  animation: pulseBtn 1.5s infinite;
+}
+
 /* Status */
 #status {
   text-align: center;
@@ -110,7 +210,6 @@ body {
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   margin-bottom: 14px;
-  animation: fadeInUp 0.6s ease;
 }
 
 .header {
@@ -228,13 +327,18 @@ body {
 }
 
 /* Animations */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 @keyframes pulseNumber {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.15); }
+}
+@keyframes pulseBtn {
+  0%, 100% { box-shadow: 0 6px 20px rgba(231,76,60,0.4); }
+  50% { box-shadow: 0 6px 30px rgba(231,76,60,0.8); }
 }
 @keyframes shine { to { left: 200%; } }
 @keyframes winningGlow {
