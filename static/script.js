@@ -10,9 +10,9 @@ let selectedCardNum = null;
 
 const MAX_CARD = 144;
 
-// ከካርድ ቁጥር የተወሰነ ካርድ ይፍጠራል
+// ከካርድ ቁጥር የተወሰነ ካርድ ይፍጠራል (B:1-15, I:16-30, N:31-45, G:46-60, O:61-75)
 function generateCardFromNumber(cardNum) {
-  // Seeded random
+  // Seeded random - ተመሳሳይ ቁጥር = ተመሳሳይ ካርድ
   let seed = cardNum * 9301 + 49297;
   function rand() {
     seed = (seed * 9301 + 49297) % 233280;
@@ -31,11 +31,11 @@ function generateCardFromNumber(cardNum) {
   }
 
   const cols = {
-    B: sampleRange(1, 29, 5),
-    I: sampleRange(30, 58, 5),
-    N: sampleRange(59, 87, 5),
-    G: sampleRange(88, 116, 5),
-    O: sampleRange(117, 144, 5),
+    B: sampleRange(1, 15, 5),     // B: 1-15
+    I: sampleRange(16, 30, 5),    // I: 16-30
+    N: sampleRange(31, 45, 5),    // N: 31-45
+    G: sampleRange(46, 60, 5),    // G: 46-60
+    O: sampleRange(61, 75, 5),    // O: 61-75
   };
 
   const card = [];
@@ -74,7 +74,6 @@ function renderPicker() {
 function pickCard(cardNum) {
   selectedCardNum = cardNum;
 
-  // ካርዱን ፍጠር
   board = generateCardFromNumber(cardNum);
   marked = new Array(25).fill(false);
   marked[12] = true;
@@ -83,7 +82,6 @@ function pickCard(cardNum) {
   resetGameState();
   renderBoard();
 
-  // ርዕስ አሳይ
   document.getElementById('cardInfo').textContent = '🎫 ካርድ ቁጥር: ' + cardNum;
 }
 
@@ -94,7 +92,7 @@ function randomCard() {
 
 function resetGameState() {
   availableNumbers = [];
-  for (let i = 1; i <= 144; i++) availableNumbers.push(i);
+  for (let i = 1; i <= 75; i++) availableNumbers.push(i);
   calledNumbers = [];
   gameOver = false;
   stopAuto();
@@ -109,7 +107,6 @@ function resetGameState() {
 }
 
 function initGame() {
-  // መጀመሪያ በዘፈቀደ ካርድ
   const num = Math.floor(Math.random() * MAX_CARD) + 1;
   pickCard(num);
 }
@@ -305,7 +302,7 @@ function openBoard() {
 
   const lastCalled = calledNumbers.length > 0 ? calledNumbers[calledNumbers.length - 1] : null;
 
-  for (let i = 1; i <= 144; i++) {
+  for (let i = 1; i <= 75; i++) {
     const cell = document.createElement('div');
     cell.className = 'num-cell';
     cell.textContent = i;
