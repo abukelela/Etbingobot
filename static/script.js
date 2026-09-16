@@ -6,29 +6,95 @@ let gameOver = false;
 let autoRunning = false;
 let countdownTimer = null;
 let countdown = 5;
-let selectedNumbers = [];
+let selectedCardNum = null;
 
-const MAX_NUMBER = 144;
-const CARD_SIZE = 24;
+const MAX_CARD = 144;
 
-function randomCard() {
-  if (!confirm('በዘፈቀደ ካርድ ይፈጠር?')) return;
-
-  const nums = new Set();
-  while (nums.size < 25) {
-    nums.add(Math.floor(Math.random() * MAX_NUMBER) + 1);
+// ከካርድ ቁጥር የተወሰነ ካርድ ይፍጠራል
+function generateCardFromNumber(cardNum) {
+  // Seeded random
+  let seed = cardNum * 9301 + 49297;
+  function rand() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
   }
-  board = [...nums];
+
+  function sampleRange(min, max, count) {
+    const pool = [];
+    for (let i = min; i <= max; i++) pool.push(i);
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor(rand() * pool.length);
+      result.push(pool.splice(idx, 1)[0]);
+    }
+    return result;
+  }
+
+  const cols = {
+    B: sampleRange(1, 29, 5),
+    I: sampleRange(30, 58, 5),
+    N: sampleRange(59, 87, 5),
+    G: sampleRange(88, 116, 5),
+    O: sampleRange(117, 144, 5),
+  };
+
+  const card = [];
+  for (let r = 0; r < 5; r++) {
+    card.push([cols.B[r], cols.I[r], cols.N[r], cols.G[r], cols.O[r]]);
+  }
+  card[2][2] = 'FREE';
+  return card.flat();
+}
+
+function openPicker() {
+  renderPicker();
+  document.getElementById('pickerModal').classList.add('open');
+}
+
+function closePicker(event) {
+  if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) {
+    return;
+  }
+  document.getElementById('pickerModal').classList.remove('open');
+}
+
+function renderPicker() {
+  const grid = document.getElementById('pickerGrid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= MAX_CARD; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'picker-cell';
+    cell.textContent = i;
+    if (i === selectedCardNum) cell.classList.add('selected');
+    cell.onclick = () => pickCard(i);
+    grid.appendChild(cell);
+  }
+}
+
+function pickCard(cardNum) {
+  selectedCardNum = cardNum;
+
+  // ካርዱን ፍጠር
+  board = generateCardFromNumber(cardNum);
   marked = new Array(25).fill(false);
   marked[12] = true;
 
+  closePicker();
   resetGameState();
   renderBoard();
+
+  // ርዕስ አሳይ
+  document.getElementById('cardInfo').textContent = '🎫 ካርድ ቁጥር: ' + cardNum;
+}
+
+function randomCard() {
+  const num = Math.floor(Math.random() * MAX_CARD) + 1;
+  pickCard(num);
 }
 
 function resetGameState() {
   availableNumbers = [];
-  for (let i = 1; i <= MAX_NUMBER; i++) availableNumbers.push(i);
+  for (let i = 1; i <= 144; i++) availableNumbers.push(i);
   calledNumbers = [];
   gameOver = false;
   stopAuto();
@@ -42,112 +108,10 @@ function resetGameState() {
   document.getElementById('timer').textContent = '';
 }
 
-function openPicker() {
-  selectedNumbers = [];
-  renderPicker();
-  document.getElementById('pickerModal').classList.add('open');
-  updatePickerCount();
-}
-
-function closePicker(event) {
-  if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) {
-    return;
-  }
-  document.getElementById('pickerModal').classList.remove('open');
-}
-
-function renderPicker() {
-  const grid = document.getElementById('pickerGrid');
-  grid.innerHTML = '';
-
-  for (let i = 1; i <= MAX_NUMBER; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'picker-cell';
-    cell.textContent = i;
-    cell.dataset.num = i;
-    if (selectedNumbers.includes(i)) cell.classList.add('selected');
-    cell.onclick = () => togglePickerNumber(i);
-    grid.appendChild(cell);
-  }
-}
-
-function togglePickerNumber(num) {
-  const idx = selectedNumbers.indexOf(num);
-  if (idx >= 0) {
-    selectedNumbers.splice(idx, 1);
-  } else {
-    if (selectedNumbers.length >= CARD_SIZE) {
-      showPickerHint('⚠️ ከ 24 በላይ መምረጥ አይቻልም!');
-      return;
-    }
-    selectedNumbers.push(num);
-  }
-  renderPicker();
-  updatePickerCount();
-}
-
-function updatePickerCount() {
-  document.getElementById('selectedCount').textContent = selectedNumbers.length;
-  document.getElementById('confirmBtn').disabled = selectedNumbers.length !== CARD_SIZE;
-}
-
-function showPickerHint(msg) {
-  const hint = document.querySelector('.picker-hint');
-  const original = hint.textContent;
-  hint.textContent = msg;
-  hint.style.color = '#ff6b6b';
-  setTimeout(() => {
-    hint.textContent = original;
-    hint.style.color = '';
-  }, 1500);
-}
-
-function clearSelection() {
-  selectedNumbers = [];
-  renderPicker();
-  updatePickerCount();
-}
-
-function confirmCard() {
-  if (selectedNumbers.length !== CARD_SIZE) return;
-
-  const sorted = [...selectedNumbers].sort((a, b) => a - b);
-
-  board = [];
-  let idx = 0;
-  for (let r = 0; r < 5; r++) {
-    const row = [];
-    for (let c = 0; c < 5; c++) {
-      if (r === 2 && c === 2) {
-        row.push('FREE');
-      } else {
-        row.push(sorted[idx]);
-        idx++;
-      }
-    }
-    board.push(row);
-  }
-
-  board = board.flat();
-  marked = new Array(25).fill(false);
-  marked[12] = true;
-
-  closePicker();
-  resetGameState();
-  renderBoard();
-}
-
 function initGame() {
-  const nums = new Set();
-  while (nums.size < 25) {
-    nums.add(Math.floor(Math.random() * MAX_NUMBER) + 1);
-  }
-  board = [...nums];
-  marked = new Array(25).fill(false);
-  marked[12] = true;
-
-  resetGameState();
-  renderBoard();
+  // መጀመሪያ በዘፈቀደ ካርድ
+  const num = Math.floor(Math.random() * MAX_CARD) + 1;
+  pickCard(num);
 }
 
 function renderBoard() {
@@ -341,7 +305,7 @@ function openBoard() {
 
   const lastCalled = calledNumbers.length > 0 ? calledNumbers[calledNumbers.length - 1] : null;
 
-  for (let i = 1; i <= MAX_NUMBER; i++) {
+  for (let i = 1; i <= 144; i++) {
     const cell = document.createElement('div');
     cell.className = 'num-cell';
     cell.textContent = i;
