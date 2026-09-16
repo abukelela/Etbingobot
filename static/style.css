@@ -68,21 +68,37 @@ h1 {
   animation: pulseNumber 0.6s ease;
 }
 
+.timer {
+  font-size: 14px;
+  opacity: 0.85;
+  min-height: 20px;
+  margin-bottom: 10px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.caller-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
 .btn-call {
   background: linear-gradient(135deg, #ffd700, #ff9500);
   color: #333;
   border: none;
-  padding: 14px 35px;
+  padding: 14px 24px;
   border-radius: 30px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  margin-top: 10px;
   box-shadow: 0 6px 20px rgba(255,215,0,0.4);
   transition: 0.2s;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .btn-call:active {
@@ -91,6 +107,37 @@ h1 {
 }
 
 .btn-call:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-auto {
+  background: linear-gradient(135deg, #27ae60, #229954);
+  color: white;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(39,174,96,0.4);
+  transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-auto:active {
+  transform: scale(0.95);
+}
+
+.btn-auto.running {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  box-shadow: 0 6px 20px rgba(231,76,60,0.4);
+  animation: pulseBtn 1.5s infinite;
+}
+
+.btn-auto:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -104,7 +151,6 @@ h1 {
   animation: fadeInUp 0.6s ease;
 }
 
-/* B I N G O ራስጌ */
 .header {
   aspect-ratio: 1;
   display: flex;
@@ -119,13 +165,12 @@ h1 {
   transition: 0.3s;
 }
 
-.header:nth-child(1) { background: linear-gradient(135deg, #3498db, #2980b9); } /* B - ሰማያዊ */
-.header:nth-child(2) { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* I - ቀይ */
-.header:nth-child(3) { background: linear-gradient(135deg, #95a5a6, #7f8c8d); } /* N - ግራጫ */
-.header:nth-child(4) { background: linear-gradient(135deg, #27ae60, #229954); } /* G - አረንጓዴ */
-.header:nth-child(5) { background: linear-gradient(135deg, #f39c12, #e67e22); } /* O - ብርቱካን */
+.header:nth-child(1) { background: linear-gradient(135deg, #3498db, #2980b9); }
+.header:nth-child(2) { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.header:nth-child(3) { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+.header:nth-child(4) { background: linear-gradient(135deg, #27ae60, #229954); }
+.header:nth-child(5) { background: linear-gradient(135deg, #f39c12, #e67e22); }
 
-/* Cells */
 .cell {
   background: rgba(255,255,255,0.95);
   color: #333;
@@ -287,6 +332,11 @@ h1 {
   50% { transform: scale(1.15); }
 }
 
+@keyframes pulseBtn {
+  0%, 100% { box-shadow: 0 6px 20px rgba(231,76,60,0.4); }
+  50% { box-shadow: 0 6px 30px rgba(231,76,60,0.8); }
+}
+
 @keyframes shine {
   to { left: 200%; }
 }
@@ -319,4 +369,4 @@ h1 {
   width: 10px;
   height: 10px;
   animation: confettiFall 3s linear forwards;
-}
+  }
