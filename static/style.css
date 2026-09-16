@@ -152,6 +152,17 @@ h1 {
   animation: pulseBtn 1.5s infinite;
 }
 
+/* Card info */
+.card-info {
+  text-align: center;
+  font-size: 15px;
+  font-weight: bold;
+  color: #ffd700;
+  margin-bottom: 10px;
+  text-shadow: 0 0 15px rgba(255,215,0,0.6);
+  min-height: 22px;
+}
+
 /* Board */
 #board {
   display: grid;
@@ -235,7 +246,7 @@ h1 {
   font-weight: 900;
   color: #ffd700;
   min-height: 34px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-shadow: 0 0 20px rgba(255,215,0,0.8);
 }
 
@@ -316,7 +327,7 @@ h1 {
 .modal-content {
   background: linear-gradient(135deg, #4a3d8f, #2d2255);
   border-radius: 20px;
-  padding: 12px;
+  padding: 14px;
   max-width: 560px;
   width: 100%;
   max-height: 95vh;
@@ -330,11 +341,11 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .modal-header h2 {
-  font-size: 17px;
+  font-size: 16px;
   color: #ffd700;
 }
 
@@ -348,6 +359,7 @@ h1 {
   font-size: 16px;
   cursor: pointer;
   transition: 0.2s;
+  flex-shrink: 0;
 }
 
 .modal-close:active {
@@ -358,29 +370,20 @@ h1 {
 /* Picker info */
 .picker-info {
   text-align: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
-
-.picker-count {
-  font-size: 18px;
-  font-weight: 900;
-  color: #ffd700;
-  margin-bottom: 3px;
-}
-
-.picker-count span { font-size: 26px; }
 
 .picker-hint {
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
-/* Number grid - picker (ለ 1-144) */
+/* Number grid - picker (1-144) */
 .number-grid-picker {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 3px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .picker-cell {
@@ -389,9 +392,9 @@ h1 {
   align-items: center;
   justify-content: center;
   background: rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.85);
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: bold;
   border: 1.5px solid rgba(255,255,255,0.15);
   cursor: pointer;
@@ -402,54 +405,15 @@ h1 {
 .picker-cell:active { transform: scale(0.9); }
 
 .picker-cell.selected {
-  background: linear-gradient(135deg, #3498db, #2980b9);
-  color: white;
-  border-color: #5dade2;
-  box-shadow: 0 0 12px rgba(52,152,219,0.7);
-  transform: scale(1.08);
+  background: linear-gradient(135deg, #ffd700, #ff9500);
+  color: #333;
+  border-color: #fff;
+  box-shadow: 0 0 15px rgba(255,215,0,0.8);
+  transform: scale(1.15);
+  font-weight: 900;
 }
 
-.picker-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.btn-clear, .btn-confirm {
-  flex: 1;
-  padding: 12px;
-  border-radius: 25px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.btn-clear {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  color: white;
-}
-
-.btn-confirm {
-  background: linear-gradient(135deg, #27ae60, #229954);
-  color: white;
-}
-
-.btn-confirm:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn-clear:active, .btn-confirm:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-/* Number grid - display (የተጠሩ ቁጥሮች - ለ 1-144) */
+/* Number grid - display (የተጠሩ ቁጥሮች 1-144) */
 .modal-stats {
   display: flex;
   justify-content: space-around;
@@ -561,10 +525,13 @@ h1 {
   .number-grid { grid-template-columns: repeat(10, 1fr); }
   .number-grid-picker { grid-template-columns: repeat(8, 1fr); }
   .num-cell { font-size: 8px; }
-  .picker-cell { font-size: 9px; }
+  .picker-cell { font-size: 10px; }
+  .modal-header h2 { font-size: 14px; }
 }
 
 @media (max-width: 360px) {
   .number-grid { grid-template-columns: repeat(9, 1fr); }
   .number-grid-picker { grid-template-columns: repeat(7, 1fr); }
+  .picker-cell { font-size: 9px; }
+  .num-cell { font-size: 7px; }
   }
