@@ -1,43 +1,45 @@
-let board = [];
-let marked = [];
+let cards = [];
+let numPlayers = 1;
 let calledNumbers = [];
 let availableNumbers = [];
 let gameOver = false;
 let autoRunning = false;
 let countdownTimer = null;
 let countdown = 5;
-let selectedCardNum = null;
 
-const MAX_CARD = 144;
+const MAX_PLAYERS = 13;
+const RANGES = {
+  B: [1, 15],
+  I: [16, 30],
+  N: [31, 45],
+  G: [46, 60],
+  O: [61, 75],
+};
 
-// ከካርድ ቁጥር የተወሰነ ካርድ ይፍጠራል (B:1-15, I:16-30, N:31-45, G:46-60, O:61-75)
-function generateCardFromNumber(cardNum) {
-  // Seeded random - ተመሳሳይ ቁጥር = ተመሳሳይ ካርድ
+// ካርድ ከ cardNum ፍጠር (seeded)
+function generateCard(cardNum) {
   let seed = cardNum * 9301 + 49297;
   function rand() {
     seed = (seed * 9301 + 49297) % 233280;
     return seed / 233280;
   }
-
-  function sampleRange(min, max, count) {
+  function sample(min, max, count) {
     const pool = [];
     for (let i = min; i <= max; i++) pool.push(i);
-    const result = [];
+    const out = [];
     for (let i = 0; i < count; i++) {
       const idx = Math.floor(rand() * pool.length);
-      result.push(pool.splice(idx, 1)[0]);
+      out.push(pool.splice(idx, 1)[0]);
     }
-    return result;
+    return out;
   }
-
   const cols = {
-    B: sampleRange(1, 15, 5),     // B: 1-15
-    I: sampleRange(16, 30, 5),    // I: 16-30
-    N: sampleRange(31, 45, 5),    // N: 31-45
-    G: sampleRange(46, 60, 5),    // G: 46-60
-    O: sampleRange(61, 75, 5),    // O: 61-75
+    B: sample(RANGES.B[0], RANGES.B[1], 5),
+    I: sample(RANGES.I[0], RANGES.I[1], 5),
+    N: sample(RANGES.N[0], RANGES.N[1], 5),
+    G: sample(RANGES.G[0], RANGES.G[1], 5),
+    O: sample(RANGES.O[0], RANGES.O[1], 5),
   };
-
   const card = [];
   for (let r = 0; r < 5; r++) {
     card.push([cols.B[r], cols.I[r], cols.N[r], cols.G[r], cols.O[r]]);
@@ -46,51 +48,38 @@ function generateCardFromNumber(cardNum) {
   return card.flat();
 }
 
-function openPicker() {
-  renderPicker();
-  document.getElementById('pickerModal').classList.add('open');
-}
-
-function closePicker(event) {
-  if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) {
-    return;
-  }
-  document.getElementById('pickerModal').classList.remove('open');
-}
-
-function renderPicker() {
-  const grid = document.getElementById('pickerGrid');
-  grid.innerHTML = '';
-  for (let i = 1; i <= MAX_CARD; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'picker-cell';
-    cell.textContent = i;
-    if (i === selectedCardNum) cell.classList.add('selected');
-    cell.onclick = () => pickCard(i);
-    grid.appendChild(cell);
+function initPlayers() {
+  const container = document.getElementById('playersButtons');
+  container.innerHTML = '';
+  for (let i = 1; i <= MAX_PLAYERS; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'p-btn';
+    btn.dataset.p = i;
+    btn.textContent = i;
+    btn.onclick = () => setPlayers(i);
+    container.appendChild(btn);
   }
 }
 
-function pickCard(cardNum) {
-  selectedCardNum = cardNum;
+function initGame() {
+  cards = [];
+  const usedNums = new Set();
+  for (let i = 0; i < numPlayers; i++) {
+    let num;
+    do {
+      num = Math.floor(Math.random() * 144) + 1;
+    } while (usedNums.has(num));
+    usedNums.add(num);
 
-  board = generateCardFromNumber(cardNum);
-  marked = new Array(25).fill(false);
-  marked[12] = true;
+    const card = {
+      num: num,
+      board: generateCard(num),
+      marked: new Array(25).fill(false),
+    };
+    card.marked[12] = true;
+    cards.push(card);
+  }
 
-  closePicker();
-  resetGameState();
-  renderBoard();
-
-  document.getElementById('cardInfo').textContent = '🎫 ካርድ ቁጥር: ' + cardNum;
-}
-
-function randomCard() {
-  const num = Math.floor(Math.random() * MAX_CARD) + 1;
-  pickCard(num);
-}
-
-function resetGameState() {
   availableNumbers = [];
   for (let i = 1; i <= 75; i++) availableNumbers.push(i);
   calledNumbers = [];
@@ -104,49 +93,84 @@ function resetGameState() {
   document.getElementById('history').innerHTML = '';
   document.getElementById('confetti').innerHTML = '';
   document.getElementById('timer').textContent = '';
+  updateCalledCount();
+
+  updatePlayerButtons();
+  renderAllBoards();
 }
 
-function initGame() {
-  const num = Math.floor(Math.random() * MAX_CARD) + 1;
-  pickCard(num);
+function setPlayers(n) {
+  numPlayers = n;
+  initGame();
 }
 
-function renderBoard() {
-  const boardEl = document.getElementById('board');
-  boardEl.innerHTML = '';
-
-  const headers = ['B', 'I', 'N', 'G', 'O'];
-  headers.forEach(letter => {
-    const header = document.createElement('div');
-    header.className = 'header';
-    header.textContent = letter;
-    boardEl.appendChild(header);
-  });
-
-  board.forEach((num, i) => {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    if (i === 12 || num === 'FREE') {
-      cell.textContent = 'FREE';
-      cell.classList.add('free');
-    } else {
-      cell.textContent = num;
-    }
-    if (marked[i]) cell.classList.add('marked');
-    cell.onclick = () => toggleCell(i, num);
-    boardEl.appendChild(cell);
+function updatePlayerButtons() {
+  document.querySelectorAll('.p-btn').forEach(btn => {
+    const p = parseInt(btn.dataset.p);
+    if (p === numPlayers) btn.classList.add('active');
+    else btn.classList.remove('active');
   });
 }
 
-function toggleCell(i, num) {
-  if (i === 12 || num === 'FREE' || gameOver) return;
-  if (!calledNumbers.includes(num) && !marked[i]) {
+function updateCalledCount() {
+  document.getElementById('calledCount').textContent = calledNumbers.length + '/75';
+}
+
+function renderAllBoards() {
+  const boardsEl = document.getElementById('boards');
+  boardsEl.innerHTML = '';
+  boardsEl.className = 'boards p' + numPlayers;
+
+  cards.forEach((card, cardIdx) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'card-wrapper';
+    wrapper.id = 'card-' + cardIdx;
+
+    const label = document.createElement('div');
+    label.className = 'card-label';
+    label.textContent = '👤 ተ' + (cardIdx + 1) + ' #' + card.num;
+    wrapper.appendChild(label);
+
+    const board = document.createElement('div');
+    board.className = 'board';
+
+    const headers = ['B', 'I', 'N', 'G', 'O'];
+    headers.forEach(letter => {
+      const h = document.createElement('div');
+      h.className = 'header';
+      h.textContent = letter;
+      board.appendChild(h);
+    });
+
+    card.board.forEach((num, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (i === 12 || num === 'FREE') {
+        cell.textContent = '★';
+        cell.classList.add('free');
+      } else {
+        cell.textContent = num;
+      }
+      if (card.marked[i]) cell.classList.add('marked');
+      cell.onclick = () => toggleCell(cardIdx, i, num);
+      board.appendChild(cell);
+    });
+
+    wrapper.appendChild(board);
+    boardsEl.appendChild(wrapper);
+  });
+}
+
+function toggleCell(cardIdx, cellIdx, num) {
+  if (cellIdx === 12 || num === 'FREE' || gameOver) return;
+  const card = cards[cardIdx];
+  if (!calledNumbers.includes(num) && !card.marked[cellIdx]) {
     showAlert('⚠️ ይህ ቁጥር ገና አልተጠራም!');
     return;
   }
-  marked[i] = !marked[i];
-  renderBoard();
-  checkBingo();
+  card.marked[cellIdx] = !card.marked[cellIdx];
+  renderAllBoards();
+  checkAllBingos();
 }
 
 function callNumber() {
@@ -158,6 +182,7 @@ function callNumber() {
   const idx = Math.floor(Math.random() * availableNumbers.length);
   const num = availableNumbers.splice(idx, 1)[0];
   calledNumbers.push(num);
+  updateCalledCount();
 
   const el = document.getElementById('lastCalled');
   el.textContent = num;
@@ -218,7 +243,7 @@ function scheduleNext() {
 
 function updateTimerDisplay() {
   if (autoRunning && countdown > 0) {
-    document.getElementById('timer').textContent = '⏱️ ቀጣይ ቁጥር በ ' + countdown + ' ሰከንድ';
+    document.getElementById('timer').textContent = '⏱️ ቀጣይ በ ' + countdown + ' ሰከንድ';
   } else {
     document.getElementById('timer').textContent = '';
   }
@@ -231,13 +256,13 @@ function stopAuto() {
   if (btn) {
     btn.classList.remove('running');
     document.getElementById('autoIcon').textContent = '▶️';
-    document.getElementById('autoText').textContent = 'ራስ-ሰር ጀምር';
+    document.getElementById('autoText').textContent = 'ራስ-ሰር';
   }
   const timerEl = document.getElementById('timer');
   if (timerEl) timerEl.textContent = '';
 }
 
-function checkBingo() {
+function checkBingoForCard(card) {
   const lines = [];
   for (let r = 0; r < 5; r++) lines.push([0,1,2,3,4].map(c => r*5 + c));
   for (let c = 0; c < 5; c++) lines.push([0,1,2,3,4].map(r => r*5 + c));
@@ -245,21 +270,45 @@ function checkBingo() {
   lines.push([4,8,12,16,20]);
 
   for (const line of lines) {
-    if (line.every(i => marked[i])) {
-      gameOver = true;
-      stopAuto();
-      const statusEl = document.getElementById('status');
-      statusEl.textContent = '🎉 BINGO! አሸንፈሃል!';
-      statusEl.classList.add('bingo');
-      highlightWinningLine(line);
-      launchConfetti();
-      return;
+    if (line.every(i => card.marked[i])) return line;
+  }
+  return null;
+}
+
+function checkAllBingos() {
+  const winners = [];
+  cards.forEach((card, idx) => {
+    const line = checkBingoForCard(card);
+    if (line) winners.push({ idx, line });
+  });
+
+  if (winners.length > 0) {
+    gameOver = true;
+    stopAuto();
+
+    const statusEl = document.getElementById('status');
+    if (winners.length === 1) {
+      statusEl.textContent = '🎉 ተጫዋች ' + (winners[0].idx + 1) + ' BINGO!';
+    } else {
+      const names = winners.map(w => 'ተ' + (w.idx + 1)).join(', ');
+      statusEl.textContent = '🎉 BINGO! ' + names;
     }
+    statusEl.classList.add('bingo');
+
+    winners.forEach(w => {
+      const wrapper = document.getElementById('card-' + w.idx);
+      if (wrapper) wrapper.classList.add('winner');
+      highlightWinningLine(w.idx, w.line);
+    });
+
+    launchConfetti();
   }
 }
 
-function highlightWinningLine(line) {
-  const cells = document.querySelectorAll('.cell');
+function highlightWinningLine(cardIdx, line) {
+  const wrapper = document.getElementById('card-' + cardIdx);
+  if (!wrapper) return;
+  const cells = wrapper.querySelectorAll('.cell');
   line.forEach(i => {
     if (cells[i]) cells[i].classList.add('winning');
   });
@@ -268,7 +317,7 @@ function highlightWinningLine(line) {
 function launchConfetti() {
   const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
   const container = document.getElementById('confetti');
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 100; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
     piece.style.left = Math.random() * 100 + '%';
@@ -306,12 +355,10 @@ function openBoard() {
     const cell = document.createElement('div');
     cell.className = 'num-cell';
     cell.textContent = i;
-
     if (calledNumbers.includes(i)) {
       cell.classList.add('called');
       if (i === lastCalled) cell.classList.add('latest');
     }
-
     grid.appendChild(cell);
   }
 
@@ -337,4 +384,5 @@ if (window.Telegram && window.Telegram.WebApp) {
   window.Telegram.WebApp.expand();
 }
 
+initPlayers();
 initGame();
