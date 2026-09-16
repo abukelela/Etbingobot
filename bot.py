@@ -77,6 +77,9 @@ def _do_call(chat_id):
 
 # ============ Bot commands ============
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    url = f"{WEBAPP_URL}?chat={chat_id}"
+    keyboard = [[InlineKeyboardButton("🎮 ጨዋታ ክፈት", web_app=WebAppInfo(url=url))]]
     await update.message.reply_text(
         "🎱 *Beteseb Bingo*\n\n"
         "📌 *ትዕዛዞች:*\n"
@@ -85,7 +88,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/draw — ቁጥር ጥራ (በእጅ)\n"
         "/auto — ራስ-ሰር ጀምር/አቁም\n"
         "/status — የጨዋታ ሁኔታ\n"
-        "/end — ጨዋታውን ጨርስ",
+        "/end — ጨዋታውን ጨርስ\n\n"
+        "👇 ወይም ጨዋታ ከፍተው:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
@@ -112,6 +117,8 @@ async def cmd_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     name = update.effective_user.first_name or "Player"
     
+    url = f"{WEBAPP_URL}?chat={chat_id}"
+    
     with games_lock:
         if chat_id not in games:
             await update.message.reply_text("⚠️ ጨዋታ የለም። /newgame ተጠቀም።")
@@ -119,7 +126,6 @@ async def cmd_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         game = games[chat_id]
         
         if user_id in game['players']:
-            url = f"{WEBAPP_URL}?chat={chat_id}&user={user_id}"
             keyboard = [[InlineKeyboardButton("🎮 ካርዴን ክፈት", web_app=WebAppInfo(url=url))]]
             await update.message.reply_text(
                 f"⚠️ {name} አስቀድመህ ተቀላቅለሃል!",
@@ -135,7 +141,6 @@ async def cmd_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         player_count = len(game['players'])
     
-    url = f"{WEBAPP_URL}?chat={chat_id}&user={user_id}"
     keyboard = [[InlineKeyboardButton("🎮 ካርዴን ክፈት", web_app=WebAppInfo(url=url))]]
     await update.message.reply_text(
         f"✅ *{name}* ተቀላቅሏል!\n"
