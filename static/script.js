@@ -3,6 +3,10 @@ let marked = [];
 let calledNumbers = [];
 let availableNumbers = [];
 let gameOver = false;
+let autoRunning = false;
+let autoTimer = null;
+let countdownTimer = null;
+let countdown = 5;
 
 function initGame() {
   const nums = new Set();
@@ -17,6 +21,7 @@ function initGame() {
   for (let i = 1; i <= 75; i++) availableNumbers.push(i);
   calledNumbers = [];
   gameOver = false;
+  stopAuto();
 
   document.getElementById('lastCalled').textContent = '';
   document.getElementById('status').textContent = '';
@@ -24,6 +29,7 @@ function initGame() {
   document.getElementById('callBtn').disabled = false;
   document.getElementById('history').innerHTML = '';
   document.getElementById('confetti').innerHTML = '';
+  document.getElementById('timer').textContent = '';
 
   renderBoard();
 }
@@ -32,7 +38,6 @@ function renderBoard() {
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
 
-  // B I N G O ራስጌ
   const headers = ['B', 'I', 'N', 'G', 'O'];
   headers.forEach(letter => {
     const header = document.createElement('div');
@@ -41,7 +46,6 @@ function renderBoard() {
     boardEl.appendChild(header);
   });
 
-  // ካርድ
   board.forEach((num, i) => {
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -71,6 +75,7 @@ function toggleCell(i, num) {
 function callNumber() {
   if (availableNumbers.length === 0) {
     document.getElementById('status').textContent = 'ሁሉም ቁጥሮች ተጠርተዋል!';
+    stopAuto();
     return;
   }
   const idx = Math.floor(Math.random() * availableNumbers.length);
@@ -91,7 +96,71 @@ function callNumber() {
 
   if (availableNumbers.length === 0) {
     document.getElementById('callBtn').disabled = true;
+    stopAuto();
   }
+}
+
+function toggleAuto() {
+  if (autoRunning) {
+    stopAuto();
+  } else {
+    startAuto();
+  }
+}
+
+function startAuto() {
+  if (availableNumbers.length === 0 || gameOver) return;
+  autoRunning = true;
+  const btn = document.getElementById('autoBtn');
+  btn.classList.add('running');
+  document.getElementById('autoIcon').textContent = '⏸️';
+  document.getElementById('autoText').textContent = 'አቁም';
+  countdown = 5;
+  updateTimerDisplay();
+  callNumber();
+  scheduleNext();
+}
+
+function scheduleNext() {
+  countdown = 5;
+  updateTimerDisplay();
+  countdownTimer = setInterval(() => {
+    countdown--;
+    updateTimerDisplay();
+    if (countdown <= 0) {
+      clearInterval(countdownTimer);
+      if (autoRunning) {
+        callNumber();
+        if (autoRunning && availableNumbers.length > 0) {
+          scheduleNext();
+        } else {
+          stopAuto();
+        }
+      }
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  if (autoRunning && countdown > 0) {
+    document.getElementById('timer').textContent = '⏱️ ቀጣይ ቁጥር በ ' + countdown + ' ሰከንድ';
+  } else {
+    document.getElementById('timer').textContent = '';
+  }
+}
+
+function stopAuto() {
+  autoRunning = false;
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  const btn = document.getElementById('autoBtn');
+  if (btn) {
+    btn.classList.remove('running');
+    document.getElementById('autoIcon').textContent = '▶️';
+    document.getElementById('autoText').textContent = 'ራስ-ሰር ጀምር';
+  }
+  const timerEl = document.getElementById('timer');
+  if (timerEl) timerEl.textContent = '';
 }
 
 function checkBingo() {
@@ -104,6 +173,7 @@ function checkBingo() {
   for (const line of lines) {
     if (line.every(i => marked[i])) {
       gameOver = true;
+      stopAuto();
       const statusEl = document.getElementById('status');
       statusEl.textContent = '🎉 BINGO! አሸንፈሃል!';
       statusEl.classList.add('bingo');
