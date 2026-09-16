@@ -16,6 +16,15 @@
     <p class="subtitle">የቤተሰብ ቢንጎ ጨዋታ</p>
   </div>
 
+  <div class="actions-top">
+    <button class="btn-pick" onclick="openPicker()">
+      <span>🎫</span> ካርድ ምረጥ
+    </button>
+    <button class="btn-random" onclick="randomCard()">
+      <span>🎲</span> በዘፈቀደ
+    </button>
+  </div>
+
   <div class="caller">
     <div class="last-called" id="lastCalled"></div>
     <div class="timer" id="timer"></div>
@@ -31,10 +40,14 @@
   </div>
 
   <div id="status"></div>
+  <div id="cardInfo" class="card-info"></div>
 
   <div id="board"></div>
 
   <div class="actions">
+    <button onclick="openBoard()">
+      <span>📊</span> የተጠሩ ቁጥሮች
+    </button>
     <button onclick="newGame()">
       <span>🔄</span> አዲስ ጨዋታ
     </button>
@@ -42,6 +55,34 @@
 
   <div class="history-title">📜 የተጠሩ ቁጥሮች</div>
   <div class="history" id="history"></div>
+</div>
+
+<!-- የካርድ ቁጥር መምረጫ Modal -->
+<div id="pickerModal" class="modal" onclick="closePicker(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>🎫 የካርድ ቁጥር ይምረጡ (1-144)</h2>
+      <button class="modal-close" onclick="closePicker()">✕</button>
+    </div>
+
+    <div class="picker-info">
+      <div class="picker-hint">ካርድ ቁጥር ይምረጡ — ራሱ ካርድዎን ይሰጣል</div>
+    </div>
+
+    <div class="number-grid-picker" id="pickerGrid"></div>
+  </div>
+</div>
+
+<!-- የተጠሩ ቁጥሮች Modal -->
+<div id="boardModal" class="modal" onclick="closeBoard(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>📊 የተጠሩ ቁጥሮች</h2>
+      <button class="modal-close" onclick="closeBoard()">✕</button>
+    </div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="number-grid" id="boardGrid"></div>
+  </div>
 </div>
 
 <div id="confetti"></div>
