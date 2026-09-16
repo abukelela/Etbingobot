@@ -13,25 +13,23 @@
   <div class="title-bar">
     <span class="bingo-ball">🎱</span>
     <h1>Beteseb Bingo</h1>
-    <p class="subtitle">የቤተሰብ ቢንጎ ጨዋታ</p>
   </div>
 
-  <div class="actions-top">
-    <button class="btn-pick" onclick="openPicker()">
-      <span>🎫</span> ካርድ ምረጥ
-    </button>
-    <button class="btn-random" onclick="randomCard()">
-      <span>🎲</span> በዘፈቀደ
-    </button>
+  <div class="top-controls">
+    <div class="players-control">
+      <span class="ps-label">👥 ተጫዋቾች</span>
+      <div class="players-buttons" id="playersButtons"></div>
+    </div>
   </div>
 
   <div class="caller">
+    <div class="called-label">📢 የተጠሩ: <span id="calledCount">0/75</span></div>
     <div class="last-called" id="lastCalled"></div>
     <div class="timer" id="timer"></div>
-    
+
     <div class="caller-buttons">
       <button class="btn-auto" id="autoBtn" onclick="toggleAuto()">
-        <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር ጀምር</span>
+        <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር</span>
       </button>
       <button class="btn-call" id="callBtn" onclick="callNumber()">
         <span>🔢</span> ጥራ
@@ -40,9 +38,8 @@
   </div>
 
   <div id="status"></div>
-  <div id="cardInfo" class="card-info"></div>
 
-  <div id="board"></div>
+  <div id="boards" class="boards"></div>
 
   <div class="actions">
     <button onclick="openBoard()">
@@ -57,27 +54,11 @@
   <div class="history" id="history"></div>
 </div>
 
-<!-- የካርድ ቁጥር መምረጫ Modal -->
-<div id="pickerModal" class="modal" onclick="closePicker(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h2>🎫 የካርድ ቁጥር ይምረጡ (1-144)</h2>
-      <button class="modal-close" onclick="closePicker()">✕</button>
-    </div>
-
-    <div class="picker-info">
-      <div class="picker-hint">ካርድ ቁጥር ይምረጡ — ራሱ ካርድዎን ይሰጣል</div>
-    </div>
-
-    <div class="number-grid-picker" id="pickerGrid"></div>
-  </div>
-</div>
-
 <!-- የተጠሩ ቁጥሮች Modal -->
 <div id="boardModal" class="modal" onclick="closeBoard(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <h2>📊 የተጠሩ ቁጥሮች</h2>
+      <h2>📊 የተጠሩ ቁጥሮች (1-75)</h2>
       <button class="modal-close" onclick="closeBoard()">✕</button>
     </div>
     <div class="modal-stats" id="modalStats"></div>
@@ -89,4 +70,4 @@
 
 <script src="/static/script.js"></script>
 </body>
-</html>
+      </html>
