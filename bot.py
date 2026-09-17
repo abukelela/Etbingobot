@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -31,8 +32,11 @@ async def cmd_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 def run_bot():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("game", cmd_game))
     print("🤖 Bot ተጀምሯል...")
-    app.run_polling()
+    app.run_polling(close_loop=False)
