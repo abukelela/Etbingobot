@@ -17,7 +17,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = f"{WEBAPP_URL}?chat={chat_id}"
     keyboard = [[InlineKeyboardButton("🎮 ጨዋታ ክፈት", web_app=WebAppInfo(url=url))]]
     await update.message.reply_text(
-        "🎱 *Beteseb Bingo*\n\n👇 ጨዋታውን ለመክፈት:",
+        "🎱 *Etbingo*\n\n👇 ጨዋታውን ለመክፈት:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
@@ -27,7 +27,7 @@ async def cmd_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = f"{WEBAPP_URL}?chat={chat_id}"
     keyboard = [[InlineKeyboardButton("🎮 ጨዋታ ክፈት", web_app=WebAppInfo(url=url))]]
     await update.message.reply_text(
-        "🎱 ጨዋታውን ለመክፈት ቁልፉን ተጭነው:",
+        "🎱 Etbingo ጨዋታውን ለመክፈት ቁልፉን ተጭነው:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
