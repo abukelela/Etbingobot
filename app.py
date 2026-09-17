@@ -6,7 +6,10 @@ from flask import Flask, render_template, jsonify, request
 
 app = Flask(__name__)
 
-# ============ Game State ============
+ROUND_DURATION = 300
+BINGO_DELAY = 60
+AUTO_CALL_INTERVAL = 5
+
 games = {}
 games_lock = threading.Lock()
 
@@ -63,11 +66,11 @@ def check_bingo(card, marked_set):
         return True
     return False
 
-def _do_call(chat_id):
+def _do_call(room_id):
     with games_lock:
-        if chat_id not in games:
+        if room_id not in games:
             return None
-        game = games[chat_id]
+        game = games[room_id]
         if not game['available']:
             return {'num': None, 'done': True}
         num = random.choice(game['available'])
@@ -83,9 +86,30 @@ def _do_call(chat_id):
                 winners.append(p['name'])
         if winners and not game['winner']:
             game['winner'] = winners
+            game['winner_time'] = time.time()
         return {'num': num, 'winners': winners, 'done': not game['available']}
 
-# ============ Routes ============
+def _reset_round(room_id):
+    with games_lock:
+        if room_id not in games:
+            return
+        game = games[room_id]
+        game['called'] = []
+        game['available'] = list(range(1, 76))
+        game['winner'] = None
+        game['winner_time'] = 0
+        game['round_number'] = game.get('round_number', 0) + 1
+        game['round_start'] = time.time()
+        game['auto'] = True
+        game['last_call'] = 0
+        valid_players = {}
+        for uid, p in game['players'].items():
+            if p.get('card'):
+                p['marked'] = {(2, 2)}
+                valid_players[uid] = p
+        game['players'] = valid_players
+        print(f"✅ Round {game['round_number']} — {len(valid_players)} ተጫዋቾች")
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -93,15 +117,22 @@ def index():
 @app.route('/api/state')
 def api_state():
     try:
-        chat_id = int(request.args.get('chat', 0))
+        room_id = str(request.args.get('chat', ''))
         user_id = int(request.args.get('user', 0))
     except ValueError:
         return jsonify({'error': 'invalid params'})
     with games_lock:
-        if chat_id not in games:
+        if room_id not in games:
             return jsonify({'error': 'no_game'})
-        game = games[chat_id]
+        game = games[room_id]
         player = game['players'].get(user_id)
+        now = time.time()
+        if game.get('winner'):
+            elapsed = now - game.get('winner_time', now)
+            remaining = max(0, int(BINGO_DELAY - elapsed))
+        else:
+            elapsed = now - game.get('round_start', now)
+            remaining = max(0, int(ROUND_DURATION - elapsed))
         return jsonify({
             'called': list(game['called']),
             'last': game['called'][-1] if game['called'] else None,
@@ -114,36 +145,46 @@ def api_state():
             'player_name': player['name'] if player else None,
             'called_count': len(game['called']),
             'needs_join': player is None,
+            'round_number': game.get('round_number', 1),
+            'round_remaining': remaining,
         })
 
 @app.route('/api/newgame', methods=['POST'])
 def api_newgame():
     data = request.json or {}
-    try:
-        chat_id = int(data.get('chat', 0))
-    except (ValueError, TypeError):
+    room_id = str(data.get('chat', ''))
+    if not room_id:
         return jsonify({'error': 'invalid'})
     with games_lock:
-        games[chat_id] = {
-            'called': [], 'available': list(range(1, 76)),
-            'players': {}, 'winner': None, 'auto': False, 'last_call': 0,
+        games[room_id] = {
+            'called': [],
+            'available': list(range(1, 76)),
+            'players': {},
+            'winner': None,
+            'winner_time': 0,
+            'auto': False,
+            'last_call': 0,
+            'round_number': 1,
+            'round_start': time.time(),
         }
     return jsonify({'ok': True})
 
 @app.route('/api/join', methods=['POST'])
 def api_join():
     data = request.json or {}
+    room_id = str(data.get('chat', ''))
     try:
-        chat_id = int(data.get('chat', 0))
         user_id = int(data.get('user', 0))
         name = str(data.get('name', 'ተጫዋች'))[:30]
         card_num = int(data.get('card_num', 0))
     except (ValueError, TypeError):
         return jsonify({'error': 'invalid'})
+    if not room_id:
+        return jsonify({'error': 'invalid'})
     with games_lock:
-        if chat_id not in games:
+        if room_id not in games:
             return jsonify({'error': 'no_game'})
-        game = games[chat_id]
+        game = games[room_id]
         if user_id in game['players']:
             return jsonify({'ok': True, 'already': True})
         if 1 <= card_num <= 144:
@@ -152,18 +193,20 @@ def api_join():
             card = generate_bingo_card()
             card_num = 0
         game['players'][user_id] = {
-            'name': name, 'card': card, 'card_num': card_num, 'marked': {(2, 2)},
+            'name': name,
+            'card': card,
+            'card_num': card_num,
+            'marked': {(2, 2)},
         }
+        if len(game['players']) == 1 and not game.get('auto'):
+            _reset_round(room_id)
     return jsonify({'ok': True, 'card_num': card_num})
 
 @app.route('/api/draw', methods=['POST'])
 def api_draw():
     data = request.json or {}
-    try:
-        chat_id = int(data.get('chat', 0))
-    except (ValueError, TypeError):
-        return jsonify({'error': 'invalid'})
-    result = _do_call(chat_id)
+    room_id = str(data.get('chat', ''))
+    result = _do_call(room_id)
     if result is None:
         return jsonify({'error': 'no_game'})
     return jsonify(result)
@@ -171,14 +214,11 @@ def api_draw():
 @app.route('/api/toggle_auto', methods=['POST'])
 def api_toggle_auto():
     data = request.json or {}
-    try:
-        chat_id = int(data.get('chat', 0))
-    except (ValueError, TypeError):
-        return jsonify({'error': 'invalid'})
+    room_id = str(data.get('chat', ''))
     with games_lock:
-        if chat_id not in games:
+        if room_id not in games:
             return jsonify({'error': 'no_game'})
-        game = games[chat_id]
+        game = games[room_id]
         game['auto'] = not game['auto']
         game['last_call'] = 0
         return jsonify({'auto': game['auto']})
@@ -186,17 +226,17 @@ def api_toggle_auto():
 @app.route('/api/mark', methods=['POST'])
 def api_mark():
     data = request.json or {}
+    room_id = str(data.get('chat', ''))
     try:
-        chat_id = int(data.get('chat', 0))
         user_id = int(data.get('user', 0))
         r = int(data.get('r', 0))
         c = int(data.get('c', 0))
     except (ValueError, TypeError):
         return jsonify({'error': 'invalid'})
     with games_lock:
-        if chat_id not in games:
+        if room_id not in games:
             return jsonify({'error': 'no_game'})
-        game = games[chat_id]
+        game = games[room_id]
         player = game['players'].get(user_id)
         if not player:
             return jsonify({'error': 'no_player'})
@@ -212,6 +252,7 @@ def api_mark():
         is_bingo = check_bingo(player['card'], player['marked'])
         if is_bingo and not game['winner']:
             game['winner'] = [player['name']]
+            game['winner_time'] = time.time()
         return jsonify({
             'marked': [list(m) for m in player['marked']],
             'winner': game['winner'],
@@ -222,48 +263,62 @@ def api_mark():
 def health():
     return jsonify({'status': 'healthy'})
 
-# ============ Auto-caller ============
 def auto_caller_loop():
     while True:
         time.sleep(1)
         try:
             with games_lock:
-                chat_ids = list(games.keys())
-            for chat_id in chat_ids:
+                room_ids = list(games.keys())
+            for room_id in room_ids:
+                round_reset = False
                 with games_lock:
-                    if chat_id not in games:
+                    if room_id not in games:
                         continue
-                    game = games[chat_id]
+                    game = games[room_id]
+                    if len(game['players']) == 0:
+                        continue
+                    now = time.time()
+                    if game.get('winner'):
+                        winner_time = game.get('winner_time', 0)
+                        if winner_time and now - winner_time >= BINGO_DELAY:
+                            round_reset = True
+                    else:
+                        elapsed = now - game.get('round_start', now)
+                        if elapsed >= ROUND_DURATION:
+                            round_reset = True
+                if round_reset:
+                    _reset_round(room_id)
+                    continue
+                do_call = False
+                with games_lock:
+                    if room_id not in games:
+                        continue
+                    game = games[room_id]
                     if not game['auto']:
-                        continue
-                    if game['winner']:
-                        game['auto'] = False
                         continue
                     if not game['available']:
                         game['auto'] = False
                         continue
+                    if game.get('winner'):
+                        continue
                     now = time.time()
-                    if now - game.get('last_call', 0) < 5:
+                    if now - game.get('last_call', 0) < AUTO_CALL_INTERVAL:
                         continue
                     game['last_call'] = now
-                _do_call(chat_id)
+                    do_call = True
+                if do_call:
+                    _do_call(room_id)
         except Exception as e:
             print(f"Auto caller error: {e}")
 
-# ============ Flask in background ============
 def run_flask():
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
-    # Auto-caller በ background
     auto_thread = threading.Thread(target=auto_caller_loop, daemon=True)
     auto_thread.start()
-
-    # Flask በ background (Bot ከ main ይሆናል)
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-
-    # Bot በ MAIN thread (event loop ስለሚፈልግ)
     from bot import run_bot
     run_bot()
