@@ -1,3 +1,4 @@
+// ===== Telegram init =====
 let roomId = '';
 let userId = 0;
 let userName = 'ተጫዋች';
@@ -41,7 +42,7 @@ function initTelegram() {
 
 initTelegram();
 
-// State
+// ===== State =====
 let card = null;
 let markedSet = new Set();
 let lastCalled = null;
@@ -50,15 +51,20 @@ let calledHistory = [];
 let currentScreen = 'loading';
 let lastRound = 0;
 
+// ===== Screens =====
 function showScreen(name) {
   if (currentScreen === name) return;
   currentScreen = name;
-  document.getElementById('noGameScreen').style.display = 'none';
-  document.getElementById('pickScreen').style.display = 'none';
-  document.getElementById('gameScreen').style.display = 'none';
-  if (name === 'noGame') document.getElementById('noGameScreen').style.display = 'block';
-  else if (name === 'pick') document.getElementById('pickScreen').style.display = 'block';
-  else if (name === 'game') document.getElementById('gameScreen').style.display = 'block';
+  const noGame = document.getElementById('noGameScreen');
+  const pick = document.getElementById('pickScreen');
+  const game = document.getElementById('gameScreen');
+  if (noGame) noGame.style.display = 'none';
+  if (pick) pick.style.display = 'none';
+  if (game) game.style.display = 'none';
+
+  if (name === 'noGame' && noGame) noGame.style.display = 'block';
+  else if (name === 'pick' && pick) pick.style.display = 'block';
+  else if (name === 'game' && game) game.style.display = 'block';
 }
 
 function showMessage(msg) {
@@ -73,20 +79,17 @@ function showMessage(msg) {
   }
 }
 
-// ===== Invite with room =====
+// ===== Invite =====
 function inviteFriends() {
   const botUsername = 'Afbingobot';
-  // የክፍሉን ሊንክ ስጥ
-  const roomUrl = `${window.location.origin}?room=${roomId}`;
-  // Telegram start parameter — ለቦቱ
-  const inviteLink = `https://t.me/${botUsername}?start=room_${roomId}`;
-  const inviteText = `🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉\n\n${inviteLink}`;
+  const roomUrl = 'https://t.me/' + botUsername + '?start=room_' + roomId;
+  const inviteText = '🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉\n\n' + roomUrl;
 
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
     try {
       const shareUrl = 'https://t.me/share/url?url=' +
-        encodeURIComponent(inviteLink) +
+        encodeURIComponent(roomUrl) +
         '&text=' + encodeURIComponent('🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉');
       tg.openTelegramLink(shareUrl);
       return;
@@ -144,16 +147,19 @@ function joinWithRandom() { joinGame(0); }
 
 function openPicker() {
   renderPicker();
-  document.getElementById('pickerModal').classList.add('open');
+  const modal = document.getElementById('pickerModal');
+  if (modal) modal.classList.add('open');
 }
 
 function closePicker(event) {
   if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
-  document.getElementById('pickerModal').classList.remove('open');
+  const modal = document.getElementById('pickerModal');
+  if (modal) modal.classList.remove('open');
 }
 
 function renderPicker() {
   const grid = document.getElementById('pickerGrid');
+  if (!grid) return;
   grid.innerHTML = '';
   for (let i = 1; i <= 144; i++) {
     const cell = document.createElement('div');
@@ -195,6 +201,7 @@ function confirmNewGame() {
   if (confirm('አዲስ ጨዋታ ጀምር? ሁሉም ተጫዋቾች ይወገዳሉ!')) createGame();
 }
 
+// ===== State sync =====
 async function fetchState() {
   if (!roomId) { showScreen('noGame'); return; }
   try {
@@ -204,26 +211,40 @@ async function fetchState() {
     if (data.error === 'no_game') { showScreen('noGame'); return; }
     if (data.error) return;
 
-    document.getElementById('playerCount').textContent = '👥 ' + data.player_count;
-    document.getElementById('calledBadge').textContent = '📢 ' + data.called_count + '/75';
-    document.getElementById('roundNum').textContent = '🔄 Round ' + data.round_number;
-    updateRoundTimer(data.round_remaining);
+    // Header
+    const pc = document.getElementById('playerCount');
+    if (pc) pc.textContent = '👥 ' + data.player_count;
+    const cb = document.getElementById('calledBadge');
+    if (cb) cb.textContent = '📢 ' + data.called_count + '/75';
 
+    // Round (ካሉ ብቻ)
+    const roundNumEl = document.getElementById('roundNum');
+    if (roundNumEl) roundNumEl.textContent = '🔄 Round ' + data.round_number;
+    const roundTimerEl = document.getElementById('roundTimer');
+    if (roundTimerEl) updateRoundTimer(data.round_remaining);
+
+    // Need join?
     if (data.needs_join) { showScreen('pick'); return; }
 
+    // In game
     showScreen('game');
-    document.getElementById('playerInfo').textContent = '👤 ' + (data.player_name || 'ተጫዋች');
+    const pi = document.getElementById('playerInfo');
+    if (pi) pi.textContent = '👤 ' + (data.player_name || 'ተጫዋች');
 
+    // Round changed?
     if (data.round_number !== lastRound) {
       lastRound = data.round_number;
       gameOver = false;
       lastCalled = null;
-      document.getElementById('status').textContent = '';
-      document.getElementById('status').classList.remove('bingo');
-      document.getElementById('lastCalled').textContent = '—';
-      document.getElementById('history').innerHTML = '';
+      const st = document.getElementById('status');
+      if (st) { st.textContent = ''; st.classList.remove('bingo'); }
+      const lc = document.getElementById('lastCalled');
+      if (lc) lc.textContent = '—';
+      const hist = document.getElementById('history');
+      if (hist) hist.innerHTML = '';
       calledHistory = [];
-      document.getElementById('confetti').innerHTML = '';
+      const cf = document.getElementById('confetti');
+      if (cf) cf.innerHTML = '';
     }
 
     card = data.card;
@@ -232,53 +253,69 @@ async function fetchState() {
     if (data.last && data.last !== lastCalled) {
       lastCalled = data.last;
       const el = document.getElementById('lastCalled');
-      el.textContent = data.last;
-      el.classList.remove('pulse');
-      void el.offsetWidth;
-      el.classList.add('pulse');
+      if (el) {
+        el.textContent = data.last;
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+      }
     } else if (!data.last) {
-      document.getElementById('lastCalled').textContent = '—';
+      const el = document.getElementById('lastCalled');
+      if (el) el.textContent = '—';
     }
 
+    // Auto button
     const autoBtn = document.getElementById('autoBtn');
-    if (data.auto) {
-      autoBtn.classList.add('running');
-      document.getElementById('autoIcon').textContent = '⏸️';
-      document.getElementById('autoText').textContent = 'አቁም';
-      document.getElementById('autoStatus').textContent = '🤖 ራስ-ሰር እየሰራ ነው';
-    } else {
-      autoBtn.classList.remove('running');
-      document.getElementById('autoIcon').textContent = '▶️';
-      document.getElementById('autoText').textContent = 'ራስ-ሰር';
-      document.getElementById('autoStatus').textContent = '';
+    const autoIcon = document.getElementById('autoIcon');
+    const autoText = document.getElementById('autoText');
+    const autoStatus = document.getElementById('autoStatus');
+    if (autoBtn) {
+      if (data.auto) {
+        autoBtn.classList.add('running');
+        if (autoIcon) autoIcon.textContent = '⏸️';
+        if (autoText) autoText.textContent = 'አቁም';
+        if (autoStatus) autoStatus.textContent = '🤖 ራስ-ሰር እየሰራ ነው';
+      } else {
+        autoBtn.classList.remove('running');
+        if (autoIcon) autoIcon.textContent = '▶️';
+        if (autoText) autoText.textContent = 'ራስ-ሰር';
+        if (autoStatus) autoStatus.textContent = '';
+      }
     }
 
+    // History
     if (data.called.length !== calledHistory.length) {
       const hist = document.getElementById('history');
-      hist.innerHTML = '';
-      data.called.forEach(n => {
-        const span = document.createElement('span');
-        span.textContent = n;
-        hist.appendChild(span);
-      });
-      hist.scrollTop = hist.scrollHeight;
+      if (hist) {
+        hist.innerHTML = '';
+        data.called.forEach(n => {
+          const span = document.createElement('span');
+          span.textContent = n;
+          hist.appendChild(span);
+        });
+        hist.scrollTop = hist.scrollHeight;
+      }
       calledHistory = data.called;
     }
 
+    // Winner
     if (data.winner && !gameOver) {
       gameOver = true;
       const statusEl = document.getElementById('status');
-      statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
-      statusEl.classList.add('bingo');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
       launchConfetti();
     }
 
     renderBoard();
-  } catch (e) {}
+  } catch (e) { console.error('Fetch error:', e); }
 }
 
 function updateRoundTimer(seconds) {
   const el = document.getElementById('roundTimer');
+  if (!el) return;
   if (seconds === undefined || seconds === null) {
     el.textContent = '⏰ --:--';
     return;
@@ -290,10 +327,13 @@ function updateRoundTimer(seconds) {
   else el.classList.remove('urgent');
 }
 
+// ===== Render =====
 function renderBoard() {
   if (!card) return;
   const boardEl = document.getElementById('board');
+  if (!boardEl) return;
   boardEl.innerHTML = '';
+
   const headers = ['B', 'I', 'N', 'G', 'O'];
   headers.forEach(letter => {
     const h = document.createElement('div');
@@ -301,6 +341,7 @@ function renderBoard() {
     h.textContent = letter;
     boardEl.appendChild(h);
   });
+
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       const num = card[r][c];
@@ -338,8 +379,10 @@ async function clickCell(r, c) {
     if (data.winner && !gameOver) {
       gameOver = true;
       const statusEl = document.getElementById('status');
-      statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
-      statusEl.classList.add('bingo');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
       launchConfetti();
     }
   } catch (e) {}
@@ -348,6 +391,7 @@ async function clickCell(r, c) {
 function launchConfetti() {
   const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
   const container = document.getElementById('confetti');
+  if (!container) return;
   for (let i = 0; i < 100; i++) {
     const piece = document.createElement('div');
     piece.className = 'confetti-piece';
@@ -361,5 +405,6 @@ function launchConfetti() {
   }
 }
 
+// ===== Start =====
 fetchState();
 setInterval(fetchState, 2000);
