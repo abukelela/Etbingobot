@@ -1,3 +1,4 @@
+// ===== Telegram init =====
 let chatId = 0;
 let userId = 0;
 let userName = 'ተጫዋች';
@@ -26,6 +27,7 @@ function initTelegram() {
 
 initTelegram();
 
+// ===== State =====
 let card = null;
 let markedSet = new Set();
 let lastCalled = null;
@@ -33,6 +35,7 @@ let gameOver = false;
 let calledHistory = [];
 let currentScreen = 'loading';
 
+// ===== Screens =====
 function showScreen(name) {
   if (currentScreen === name) return;
   currentScreen = name;
@@ -56,6 +59,49 @@ function showMessage(msg) {
   }
 }
 
+// ===== Invite =====
+function inviteFriends() {
+  const botUsername = 'Afbingobot';
+  const botLink = 'https://t.me/' + botUsername;
+  const inviteText = '🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉';
+
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+    try {
+      const shareUrl = 'https://t.me/share/url?url=' +
+        encodeURIComponent(botLink) +
+        '&text=' + encodeURIComponent(inviteText);
+      tg.openTelegramLink(shareUrl);
+      return;
+    } catch (e) {
+      console.log('TG share error:', e);
+    }
+  }
+
+  // Fallback
+  if (navigator.share) {
+    navigator.share({
+      title: 'Etbingo',
+      text: inviteText + '\n\n' + botLink
+    }).catch(() => copyToClipboard(inviteText + '\n\n' + botLink));
+  } else {
+    copyToClipboard(inviteText + '\n\n' + botLink);
+  }
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      showMessage('✅ ሊንኩ ተቀድቷል! ጓደኞችዎን ይላኩት');
+    }).catch(() => {
+      showMessage('📤 ሊንክ: t.me/Afbingobot');
+    });
+  } else {
+    showMessage('📤 ሊንክ: t.me/Afbingobot');
+  }
+}
+
+// ===== Actions =====
 async function createGame() {
   if (!chatId) { showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ'); return; }
   try {
@@ -137,10 +183,11 @@ function confirmNewGame() {
   if (confirm('አዲስ ጨዋታ ጀምር? ሁሉም ተጫዋቾች ይወገዳሉ!')) createGame();
 }
 
+// ===== State sync =====
 async function fetchState() {
   if (!chatId) { showScreen('noGame'); return; }
   try {
-    const r = await fetch(`/api/state?chat=${chatId}&user=${userId}`);
+    const r = await fetch('/api/state?chat=' + chatId + '&user=' + userId);
     const data = await r.json();
 
     if (data.error === 'no_game') { showScreen('noGame'); return; }
@@ -205,6 +252,7 @@ async function fetchState() {
   } catch (e) { console.error('Fetch error:', e); }
 }
 
+// ===== Render =====
 function renderBoard() {
   if (!card) return;
   const boardEl = document.getElementById('board');
@@ -278,5 +326,6 @@ function launchConfetti() {
   }
 }
 
+// ===== Start =====
 fetchState();
 setInterval(fetchState, 2000);
