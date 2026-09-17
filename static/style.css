@@ -11,6 +11,7 @@ body {
 
 .container { max-width: 420px; margin: 0 auto; }
 
+/* Header bar */
 .header-bar {
   display: flex;
   justify-content: space-between;
@@ -37,6 +38,35 @@ body {
   box-shadow: 0 3px 10px rgba(255,215,0,0.4);
 }
 
+/* Invite bar */
+.invite-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.btn-invite {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 22px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(79,172,254,0.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.2s;
+}
+
+.btn-invite:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(79,172,254,0.7);
+}
+
+/* Screens */
 .screen { animation: fadeIn 0.4s ease; }
 
 .empty-icon {
@@ -98,6 +128,7 @@ body {
 
 .btn-secondary:active { transform: scale(0.95); }
 
+/* Caller */
 .caller {
   background: rgba(255,255,255,0.15);
   border-radius: 18px;
@@ -131,6 +162,7 @@ body {
   margin-top: 4px;
 }
 
+/* Game controls */
 .game-controls {
   display: flex;
   gap: 8px;
@@ -178,6 +210,7 @@ body {
   animation: pulseBtn 1.5s infinite;
 }
 
+/* Status */
 #status {
   text-align: center;
   font-size: 20px;
@@ -190,6 +223,7 @@ body {
 
 #status.bingo { animation: bingoPop 0.5s ease; }
 
+/* Board */
 #board {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -266,7 +300,13 @@ body {
 
 .cell.winning { animation: winningGlow 1s infinite alternate; }
 
-.history-title { font-size: 12px; opacity: 0.8; margin-bottom: 6px; text-align: center; }
+/* History */
+.history-title {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+  text-align: center;
+}
 
 .history {
   background: rgba(0,0,0,0.25);
@@ -289,6 +329,7 @@ body {
   animation: popIn 0.3s ease;
 }
 
+/* Modal */
 .modal {
   display: none;
   position: fixed;
@@ -313,6 +354,7 @@ body {
   max-height: 92vh;
   overflow-y: auto;
   border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
 .modal-header {
@@ -335,6 +377,8 @@ body {
   cursor: pointer;
   flex-shrink: 0;
 }
+
+.modal-close:active { transform: scale(0.9); }
 
 .picker-info { text-align: center; margin-bottom: 12px; }
 .picker-hint { font-size: 12px; opacity: 0.85; }
@@ -371,6 +415,7 @@ body {
   transform: scale(1.15);
 }
 
+/* Confetti */
 #confetti {
   position: fixed;
   top: 0; left: 0;
@@ -386,6 +431,7 @@ body {
   animation: confettiFall 3s linear forwards;
 }
 
+/* Animations */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
@@ -412,4 +458,4 @@ body {
 @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
 @keyframes confettiFall {
   to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
+  }
