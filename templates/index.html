@@ -8,10 +8,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-
 <div class="container">
-
-  <!-- Top Bar -->
   <div class="header-bar">
     <div class="header-left">
       <div class="player-info" id="playerInfo">👤 ተጫዋች</div>
@@ -20,7 +17,6 @@
     <div class="called-badge" id="calledBadge">📢 0/75</div>
   </div>
 
-  <!-- No Game Screen -->
   <div id="noGameScreen" class="screen">
     <div class="empty-icon">🎱</div>
     <h2>እንኳን ደህና መጡ!</h2>
@@ -30,26 +26,24 @@
     </button>
   </div>
 
-  <!-- Join Screen -->
-  <div id="joinScreen" class="screen" style="display:none">
+  <div id="pickScreen" class="screen" style="display:none">
     <div class="empty-icon">🎫</div>
-    <h2>ጨዋታ ተጀምሯል!</h2>
-    <p class="empty-text">
-      👥 <span id="joinPlayerCount">0</span> ተጫዋቾች ተቀላቅለዋል
-    </p>
-    <button class="btn-primary" onclick="joinGame()">
-      <span>✋</span> ተቀላቀል
+    <h2>ካርድዎን ይምረጡ</h2>
+    <p class="empty-text">ከ 1 እስከ 144 ቁጥር ይምረጡ</p>
+    <button class="btn-primary" onclick="openPicker()">
+      <span>🎫</span> ካርድ ምረጥ
+    </button>
+    <button class="btn-secondary" onclick="joinWithRandom()">
+      <span>🎲</span> በዘፈቀደ
     </button>
   </div>
 
-  <!-- Game Screen -->
   <div id="gameScreen" class="screen" style="display:none">
     <div class="caller">
       <div class="last-called-label">🎯 የተጠራው ቁጥር</div>
       <div class="last-called" id="lastCalled">—</div>
       <div class="auto-status" id="autoStatus"></div>
     </div>
-
     <div class="game-controls">
       <button class="btn-auto" id="autoBtn" onclick="toggleAuto()">
         <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር</span>
@@ -61,19 +55,27 @@
         <span>🔄</span>
       </button>
     </div>
-
     <div id="status"></div>
-
     <div id="board"></div>
-
     <div class="history-title">📜 ታሪክ</div>
     <div class="history" id="history"></div>
   </div>
+</div>
 
+<div id="pickerModal" class="modal" onclick="closePicker(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>🎫 የካርድ ቁጥር ይምረጡ (1-144)</h2>
+      <button class="modal-close" onclick="closePicker()">✕</button>
+    </div>
+    <div class="picker-info">
+      <div class="picker-hint">ቁጥር ይምረጡ — ራሱ ካርድዎን ይሰጣል</div>
+    </div>
+    <div class="number-grid-picker" id="pickerGrid"></div>
+  </div>
 </div>
 
 <div id="confetti"></div>
-
 <script src="/static/script.js"></script>
 </body>
 </html>
