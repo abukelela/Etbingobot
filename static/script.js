@@ -1,41 +1,55 @@
-// ===== Telegram init =====
-let chatId = 0;
+let roomId = '';
 let userId = 0;
 let userName = 'ተጫዋች';
 
 function initTelegram() {
+  // 1. URL param (room) — ቅድሚያ
+  const params = new URLSearchParams(window.location.search);
+  const urlRoom = params.get('room');
+  if (urlRoom) {
+    roomId = urlRoom;
+  }
+
+  // 2. Telegram init
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
     const initData = tg.initDataUnsafe || {};
+
     if (initData.user && initData.user.id) {
       userId = initData.user.id;
       userName = initData.user.first_name || 'ተጫዋች';
     }
-    if (initData.chat && initData.chat.id) {
-      chatId = initData.chat.id;
+
+    // Room fallback — Telegram chat ወይም user
+    if (!roomId) {
+      if (initData.chat && initData.chat.id) {
+        roomId = 'c' + initData.chat.id;
+      } else if (userId) {
+        roomId = 'u' + userId;
+      }
     }
   }
-  const params = new URLSearchParams(window.location.search);
-  const urlChat = parseInt(params.get('chat') || '0');
-  const urlUser = parseInt(params.get('user') || '0');
-  if (!chatId && urlChat) chatId = urlChat;
-  if (!userId && urlUser) userId = urlUser;
-  if (!chatId && userId) chatId = userId;
+
+  // 3. URL fallbacks
+  if (!userId) userId = parseInt(params.get('user') || '0');
+  if (!roomId && userId) roomId = 'u' + userId;
+
+  console.log('Room:', roomId, 'User:', userId, 'Name:', userName);
 }
 
 initTelegram();
 
-// ===== State =====
+// State
 let card = null;
 let markedSet = new Set();
 let lastCalled = null;
 let gameOver = false;
 let calledHistory = [];
 let currentScreen = 'loading';
+let lastRound = 0;
 
-// ===== Screens =====
 function showScreen(name) {
   if (currentScreen === name) return;
   currentScreen = name;
@@ -59,56 +73,54 @@ function showMessage(msg) {
   }
 }
 
-// ===== Invite =====
+// ===== Invite with room =====
 function inviteFriends() {
   const botUsername = 'Afbingobot';
-  const botLink = 'https://t.me/' + botUsername;
-  const inviteText = '🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉';
+  // የክፍሉን ሊንክ ስጥ
+  const roomUrl = `${window.location.origin}?room=${roomId}`;
+  // Telegram start parameter — ለቦቱ
+  const inviteLink = `https://t.me/${botUsername}?start=room_${roomId}`;
+  const inviteText = `🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉\n\n${inviteLink}`;
 
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
     try {
       const shareUrl = 'https://t.me/share/url?url=' +
-        encodeURIComponent(botLink) +
-        '&text=' + encodeURIComponent(inviteText);
+        encodeURIComponent(inviteLink) +
+        '&text=' + encodeURIComponent('🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉');
       tg.openTelegramLink(shareUrl);
       return;
-    } catch (e) {
-      console.log('TG share error:', e);
-    }
+    } catch (e) {}
   }
 
-  // Fallback
   if (navigator.share) {
     navigator.share({
       title: 'Etbingo',
-      text: inviteText + '\n\n' + botLink
-    }).catch(() => copyToClipboard(inviteText + '\n\n' + botLink));
+      text: inviteText
+    }).catch(() => copyToClipboard(inviteText));
   } else {
-    copyToClipboard(inviteText + '\n\n' + botLink);
+    copyToClipboard(inviteText);
   }
 }
 
 function copyToClipboard(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => {
-      showMessage('✅ ሊንኩ ተቀድቷል! ጓደኞችዎን ይላኩት');
-    }).catch(() => {
-      showMessage('📤 ሊንክ: t.me/Afbingobot');
-    });
+      showMessage('✅ ሊንኩ ተቀድቷል!');
+    }).catch(() => showMessage('📤 t.me/Afbingobot'));
   } else {
-    showMessage('📤 ሊንክ: t.me/Afbingobot');
+    showMessage('📤 t.me/Afbingobot');
   }
 }
 
-// ===== Actions =====
+// ===== API Calls =====
 async function createGame() {
-  if (!chatId) { showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ'); return; }
+  if (!roomId) { showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ'); return; }
   try {
     const r = await fetch('/api/newgame', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: chatId })
+      body: JSON.stringify({ chat: roomId })
     });
     if (r.ok) await fetchState();
     else showMessage('⚠️ ጨዋታ መፍጠር አልተቻለም');
@@ -116,12 +128,12 @@ async function createGame() {
 }
 
 async function joinGame(cardNum = 0) {
-  if (!chatId || !userId) { showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ'); return; }
+  if (!roomId || !userId) { showMessage('⚠️ ከ Telegram ውስጥ ይክፈቱ'); return; }
   try {
     const r = await fetch('/api/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: chatId, user: userId, name: userName, card_num: cardNum })
+      body: JSON.stringify({ chat: roomId, user: userId, name: userName, card_num: cardNum })
     });
     if (r.ok) await fetchState();
     else showMessage('⚠️ መቀላቀል አልተቻለም');
@@ -156,38 +168,37 @@ function renderPicker() {
 }
 
 async function drawNumber() {
-  if (!chatId) return;
+  if (!roomId) return;
   try {
     await fetch('/api/draw', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: chatId })
+      body: JSON.stringify({ chat: roomId })
     });
     await fetchState();
-  } catch (e) { console.error('Draw error:', e); }
+  } catch (e) {}
 }
 
 async function toggleAuto() {
-  if (!chatId) return;
+  if (!roomId) return;
   try {
     await fetch('/api/toggle_auto', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: chatId })
+      body: JSON.stringify({ chat: roomId })
     });
     await fetchState();
-  } catch (e) { console.error('Auto error:', e); }
+  } catch (e) {}
 }
 
 function confirmNewGame() {
   if (confirm('አዲስ ጨዋታ ጀምር? ሁሉም ተጫዋቾች ይወገዳሉ!')) createGame();
 }
 
-// ===== State sync =====
 async function fetchState() {
-  if (!chatId) { showScreen('noGame'); return; }
+  if (!roomId) { showScreen('noGame'); return; }
   try {
-    const r = await fetch('/api/state?chat=' + chatId + '&user=' + userId);
+    const r = await fetch('/api/state?chat=' + encodeURIComponent(roomId) + '&user=' + userId);
     const data = await r.json();
 
     if (data.error === 'no_game') { showScreen('noGame'); return; }
@@ -195,11 +206,25 @@ async function fetchState() {
 
     document.getElementById('playerCount').textContent = '👥 ' + data.player_count;
     document.getElementById('calledBadge').textContent = '📢 ' + data.called_count + '/75';
+    document.getElementById('roundNum').textContent = '🔄 Round ' + data.round_number;
+    updateRoundTimer(data.round_remaining);
 
     if (data.needs_join) { showScreen('pick'); return; }
 
     showScreen('game');
     document.getElementById('playerInfo').textContent = '👤 ' + (data.player_name || 'ተጫዋች');
+
+    if (data.round_number !== lastRound) {
+      lastRound = data.round_number;
+      gameOver = false;
+      lastCalled = null;
+      document.getElementById('status').textContent = '';
+      document.getElementById('status').classList.remove('bingo');
+      document.getElementById('lastCalled').textContent = '—';
+      document.getElementById('history').innerHTML = '';
+      calledHistory = [];
+      document.getElementById('confetti').innerHTML = '';
+    }
 
     card = data.card;
     markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
@@ -249,15 +274,26 @@ async function fetchState() {
     }
 
     renderBoard();
-  } catch (e) { console.error('Fetch error:', e); }
+  } catch (e) {}
 }
 
-// ===== Render =====
+function updateRoundTimer(seconds) {
+  const el = document.getElementById('roundTimer');
+  if (seconds === undefined || seconds === null) {
+    el.textContent = '⏰ --:--';
+    return;
+  }
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  el.textContent = '⏰ ' + m + ':' + (s < 10 ? '0' : '') + s;
+  if (seconds <= 30) el.classList.add('urgent');
+  else el.classList.remove('urgent');
+}
+
 function renderBoard() {
   if (!card) return;
   const boardEl = document.getElementById('board');
   boardEl.innerHTML = '';
-
   const headers = ['B', 'I', 'N', 'G', 'O'];
   headers.forEach(letter => {
     const h = document.createElement('div');
@@ -265,7 +301,6 @@ function renderBoard() {
     h.textContent = letter;
     boardEl.appendChild(h);
   });
-
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       const num = card[r][c];
@@ -291,7 +326,7 @@ async function clickCell(r, c) {
     const resp = await fetch('/api/mark', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: chatId, user: userId, r: r, c: c })
+      body: JSON.stringify({ chat: roomId, user: userId, r: r, c: c })
     });
     const data = await resp.json();
     if (data.error) {
@@ -307,7 +342,7 @@ async function clickCell(r, c) {
       statusEl.classList.add('bingo');
       launchConfetti();
     }
-  } catch (e) { console.error('Mark error:', e); }
+  } catch (e) {}
 }
 
 function launchConfetti() {
@@ -326,6 +361,5 @@ function launchConfetti() {
   }
 }
 
-// ===== Start =====
 fetchState();
 setInterval(fetchState, 2000);
