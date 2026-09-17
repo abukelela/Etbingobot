@@ -13,8 +13,14 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN", "YOUR_TOKEN_HERE")
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://example.com")
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-    url = f"{WEBAPP_URL}?chat={chat_id}"
+    
+    # በግል ቻት — user_id እንጠቀም፤ በቡድን — chat_id
+    is_private = update.effective_chat.type == 'private'
+    room_id = f"u{user_id}" if is_private else f"c{chat_id}"
+    
+    url = f"{WEBAPP_URL}?room={room_id}"
     keyboard = [[InlineKeyboardButton("🎮 ጨዋታ ክፈት", web_app=WebAppInfo(url=url))]]
     await update.message.reply_text(
         "🎱 *Etbingo*\n\n👇 ጨዋታውን ለመክፈት:",
@@ -23,11 +29,15 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def cmd_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-    url = f"{WEBAPP_URL}?chat={chat_id}"
+    is_private = update.effective_chat.type == 'private'
+    room_id = f"u{user_id}" if is_private else f"c{chat_id}"
+    
+    url = f"{WEBAPP_URL}?room={room_id}"
     keyboard = [[InlineKeyboardButton("🎮 ጨዋታ ክፈት", web_app=WebAppInfo(url=url))]]
     await update.message.reply_text(
-        "🎱 Etbingo ጨዋታውን ለመክፈት ቁልፉን ተጭነው:",
+        "🎱 Etbingo ጨዋታውን ለመክፈት:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
