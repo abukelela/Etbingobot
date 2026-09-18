@@ -32,29 +32,27 @@ function initTelegram() {
     }
   }
 
-  // 🎯 roomId ካለ — userId ን ከእሱ አውጣ
-  if (roomId && !userId) {
-    if (roomId.startsWith('u')) {
-      const id = parseInt(roomId.substring(1));
-      if (!isNaN(id)) {
-        userId = id;
-        console.log('userId derived from roomId:', userId);
-      }
-    } else if (roomId.startsWith('c')) {
-      // ቡድን — user_id አይታወቅም
-      // ራስን ለይቶ ለማወቅ random እንጠቀም (session ብቻ)
-      userId = Date.now(); // temporary
-      console.log('Group chat — using temp userId:', userId);
+  // userId ካለ — roomId አውጣ
+  if (roomId && !userId && roomId.startsWith('u')) {
+    const id = parseInt(roomId.substring(1));
+    if (!isNaN(id) && id < 9007199254740991) {
+      userId = id;
     }
   }
 
-  // አሁንም ከሌለ — random
-  if (!roomId) {
-    roomId = 'r' + Math.random().toString(36).substring(2, 10);
-  }
+  // userId ከሌለ — ትንሽ ቁጥር ተጠቀም
   if (!userId) {
-    userId = Date.now();
+    userId = 100000 + Math.floor(Math.random() * 899999);
+    console.log('Generated userId:', userId);
   }
+
+  // roomId ካልተገኘ
+  if (!roomId) {
+    roomId = 'u' + userId;
+  }
+
+  // ርዝመት ገደብ
+  if (roomId.length > 50) roomId = roomId.substring(0, 50);
 
   console.log('✅ Final — Room:', roomId, 'User:', userId, 'Name:', userName);
 }
@@ -128,12 +126,13 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => showToast('✅ ሊንኩ ተቀድቷል!'))
       .catch(() => showToast('📤 t.me/Afbingobot'));
   } else {
-    showToast('📤 t.me/Afbingobot');
+    showToast('📤 t.me/Afingobot');
   }
 }
 
 // ===== API =====
 async function createGame() {
+  console.log('🎮 createGame(). roomId:', roomId);
   if (!roomId) { showToast('⚠️ ክፍል አልተገኘም'); return; }
   try {
     showToast('⏳ ጨዋታ እየተፈጠረ...');
@@ -142,6 +141,7 @@ async function createGame() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat: roomId })
     });
+    console.log('newgame status:', r.status);
     if (r.ok) {
       await fetchState();
       showToast('✅ ጨዋታ ተፈጠረ!');
@@ -149,12 +149,13 @@ async function createGame() {
       showToast('⚠️ ጨዋታ መፍጠር አልተቻለም');
     }
   } catch (e) {
+    console.log('createGame err:', e);
     showToast('⚠️ የኢንተርኔት ችግር');
   }
 }
 
 async function joinGame(cardNum = 0) {
-  console.log('🎫 joinGame called. roomId:', roomId, 'userId:', userId, 'card:', cardNum);
+  console.log('🎫 joinGame. room:', roomId, 'user:', userId, 'card:', cardNum);
   if (!roomId || !userId) {
     showToast('⚠️ ክፍል ወይም ተጫዋች አልተገኘም');
     return;
