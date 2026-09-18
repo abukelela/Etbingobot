@@ -6,7 +6,10 @@ let userName = 'ተጫዋች';
 function initTelegram() {
   const params = new URLSearchParams(window.location.search);
   const urlRoom = params.get('room');
+  const urlUser = params.get('user');
+
   if (urlRoom) roomId = urlRoom;
+  if (urlUser) userId = parseInt(urlUser);
 
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
@@ -15,7 +18,7 @@ function initTelegram() {
     const initData = tg.initDataUnsafe || {};
     console.log('TG initData:', JSON.stringify(initData));
 
-    if (initData.user && initData.user.id) {
+    if (!userId && initData.user && initData.user.id) {
       userId = initData.user.id;
       userName = initData.user.first_name || 'ተጫዋች';
     }
@@ -29,15 +32,31 @@ function initTelegram() {
     }
   }
 
-  if (!userId) userId = parseInt(params.get('user') || '0');
-  if (!roomId && userId) roomId = 'u' + userId;
+  // 🎯 roomId ካለ — userId ን ከእሱ አውጣ
+  if (roomId && !userId) {
+    if (roomId.startsWith('u')) {
+      const id = parseInt(roomId.substring(1));
+      if (!isNaN(id)) {
+        userId = id;
+        console.log('userId derived from roomId:', userId);
+      }
+    } else if (roomId.startsWith('c')) {
+      // ቡድን — user_id አይታወቅም
+      // ራስን ለይቶ ለማወቅ random እንጠቀም (session ብቻ)
+      userId = Date.now(); // temporary
+      console.log('Group chat — using temp userId:', userId);
+    }
+  }
 
-  // የመጨረሻ fallback — ማንኛውም ከሌለ
+  // አሁንም ከሌለ — random
   if (!roomId) {
     roomId = 'r' + Math.random().toString(36).substring(2, 10);
   }
+  if (!userId) {
+    userId = Date.now();
+  }
 
-  console.log('Room:', roomId, 'User:', userId, 'Name:', userName);
+  console.log('✅ Final — Room:', roomId, 'User:', userId, 'Name:', userName);
 }
 
 initTelegram();
@@ -51,7 +70,6 @@ let calledHistory = [];
 let currentScreen = 'loading';
 let lastRound = 0;
 
-// ===== Toast (always visible) =====
 function showToast(msg) {
   let toast = document.getElementById('toast');
   if (!toast) {
@@ -62,12 +80,9 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.className = 'toast show';
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => {
-    toast.className = 'toast';
-  }, 3000);
+  window._toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3500);
 }
 
-// Keep showMessage for old calls
 function showMessage(msg) { showToast(msg); }
 
 // ===== Screens =====
@@ -98,9 +113,8 @@ function inviteFriends() {
         '&text=' + encodeURIComponent(inviteText);
       tg.openTelegramLink(shareUrl);
       return;
-    } catch (e) { console.log('TG share err:', e); }
+    } catch (e) {}
   }
-
   if (navigator.share) {
     navigator.share({ title: 'Etbingo', text: inviteText + '\n\n' + roomUrl })
       .catch(() => copyToClipboard(inviteText + '\n\n' + roomUrl));
@@ -120,7 +134,6 @@ function copyToClipboard(text) {
 
 // ===== API =====
 async function createGame() {
-  console.log('🎮 createGame() called. roomId:', roomId);
   if (!roomId) { showToast('⚠️ ክፍል አልተገኘም'); return; }
   try {
     showToast('⏳ ጨዋታ እየተፈጠረ...');
@@ -129,7 +142,6 @@ async function createGame() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat: roomId })
     });
-    console.log('newgame status:', r.status);
     if (r.ok) {
       await fetchState();
       showToast('✅ ጨዋታ ተፈጠረ!');
@@ -137,22 +149,40 @@ async function createGame() {
       showToast('⚠️ ጨዋታ መፍጠር አልተቻለም');
     }
   } catch (e) {
-    console.log('createGame err:', e);
     showToast('⚠️ የኢንተርኔት ችግር');
   }
 }
 
 async function joinGame(cardNum = 0) {
-  if (!roomId || !userId) { showToast('⚠️ ከ Telegram ውስጥ ይክፈቱ'); return; }
+  console.log('🎫 joinGame called. roomId:', roomId, 'userId:', userId, 'card:', cardNum);
+  if (!roomId || !userId) {
+    showToast('⚠️ ክፍል ወይም ተጫዋች አልተገኘም');
+    return;
+  }
   try {
+    showToast('⏳ በመቀላቀል ላይ...');
     const r = await fetch('/api/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: roomId, user: userId, name: userName, card_num: cardNum })
+      body: JSON.stringify({
+        chat: roomId,
+        user: userId,
+        name: userName,
+        card_num: cardNum
+      })
     });
-    if (r.ok) await fetchState();
-    else showToast('⚠️ መቀላቀል አልተቻለም');
-  } catch (e) { showToast('⚠️ የኢንተርኔት ችግር'); }
+    const data = await r.json();
+    console.log('join response:', data);
+    if (data.error) {
+      showToast('⚠️ ' + data.error);
+      return;
+    }
+    showToast('✅ ተቀላቅለሃል!');
+    await fetchState();
+  } catch (e) {
+    console.log('join err:', e);
+    showToast('⚠️ የኢንተርኔት ችግር');
+  }
 }
 
 function joinWithRandom() { joinGame(0); }
@@ -177,7 +207,10 @@ function renderPicker() {
     const cell = document.createElement('div');
     cell.className = 'picker-cell';
     cell.textContent = i;
-    cell.onclick = () => { closePicker(); joinGame(i); };
+    cell.onclick = () => {
+      closePicker();
+      joinGame(i);
+    };
     grid.appendChild(cell);
   }
 }
@@ -216,8 +249,6 @@ async function fetchState() {
   try {
     const r = await fetch('/api/state?chat=' + encodeURIComponent(roomId) + '&user=' + userId);
     const data = await r.json();
-    console.log('state:', data.error || 'ok', 'players:', data.player_count);
-
     if (data.error === 'no_game') { showScreen('noGame'); return; }
     if (data.error) return;
 
@@ -225,11 +256,10 @@ async function fetchState() {
     if (pc) pc.textContent = '👥 ' + data.player_count;
     const cb = document.getElementById('calledBadge');
     if (cb) cb.textContent = '📢 ' + data.called_count + '/75';
-
-    const roundNumEl = document.getElementById('roundNum');
-    if (roundNumEl) roundNumEl.textContent = '🔄 Round ' + data.round_number;
-    const roundTimerEl = document.getElementById('roundTimer');
-    if (roundTimerEl) updateRoundTimer(data.round_remaining);
+    const rn = document.getElementById('roundNum');
+    if (rn) rn.textContent = '🔄 Round ' + data.round_number;
+    const rt = document.getElementById('roundTimer');
+    if (rt) updateRoundTimer(data.round_remaining);
 
     if (data.needs_join) { showScreen('pick'); return; }
 
@@ -332,7 +362,6 @@ function renderBoard() {
   const boardEl = document.getElementById('board');
   if (!boardEl) return;
   boardEl.innerHTML = '';
-
   const headers = ['B', 'I', 'N', 'G', 'O'];
   headers.forEach(letter => {
     const h = document.createElement('div');
@@ -340,7 +369,6 @@ function renderBoard() {
     h.textContent = letter;
     boardEl.appendChild(h);
   });
-
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       const num = card[r][c];
