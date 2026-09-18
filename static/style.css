@@ -38,6 +38,39 @@ body {
   box-shadow: 0 3px 10px rgba(255,215,0,0.4);
 }
 
+/* Round bar */
+.round-bar {
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+  padding: 8px 14px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.round-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.round-num {
+  font-size: 13px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+.round-timer {
+  font-size: 13px;
+  font-weight: bold;
+  color: #4facfe;
+  transition: 0.3s;
+}
+
+.round-timer.urgent {
+  color: #e74c3c;
+  animation: pulseNumber 0.8s infinite;
+}
+
 /* Invite bar */
 .invite-bar {
   display: flex;
@@ -429,6 +462,32 @@ body {
   width: 10px;
   height: 10px;
   animation: confettiFall 3s linear forwards;
+}
+
+/* Toast notification */
+#toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 9999;
+  opacity: 0;
+  transition: 0.3s;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+  pointer-events: none;
+  max-width: 90%;
+  text-align: center;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* Animations */
