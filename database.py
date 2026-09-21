@@ -66,6 +66,20 @@ class DepositRequest(Base):
     processed_at = Column(DateTime, nullable=True)
 
 
+class WithdrawRequest(Base):
+    __tablename__ = "withdraw_requests"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, nullable=False, index=True)
+    user_name = Column(String(100), nullable=True)
+    amount = Column(Float, nullable=False)
+    method = Column(String(30), nullable=False)
+    account = Column(String(100), nullable=False)
+    status = Column(String(20), default="pending", index=True)
+    admin_note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    processed_at = Column(DateTime, nullable=True)
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables ready")
@@ -192,7 +206,6 @@ def get_deposit_request(req_id):
 
 
 def process_deposit_request(req_id, approve, admin_note=None):
-    """Approve/Reject deposit — returns (ok, message)"""
     session = get_session()
     try:
         req = session.query(DepositRequest).filter_by(id=req_id).first()
@@ -243,6 +256,118 @@ def get_user_deposits(user_id, limit=10):
         return [{
             "id": r.id, "amount": r.amount, "method": r.method,
             "reference": r.reference, "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        } for r in reqs]
+    finally:
+        session.close()
+
+
+# ===== Withdraw Requests =====
+def create_withdraw_request(user_id, user_name, amount, method, account):
+    session = get_session()
+    try:
+        user = session.query(User).filter_by(telegram_id=user_id).first()
+        if not user:
+            return None, "user_not_found"
+        if user.balance < amount:
+            return None, "insufficient_balance"
+
+        user.balance -= amount
+        session.commit()
+
+        req = WithdrawRequest(user_id=user_id, user_name=user_name,
+            amount=amount, method=method, account=account, status="pending")
+        session.add(req)
+        session.commit()
+        session.refresh(req)
+        return req.id, None
+    except Exception as e:
+        session.rollback()
+        print(f"create_withdraw error: {e}")
+        return None, str(e)
+    finally:
+        session.close()
+
+
+def get_withdraw_request(req_id):
+    session = get_session()
+    try:
+        return session.query(WithdrawRequest).filter_by(id=req_id).first()
+    finally:
+        session.close()
+
+
+def process_withdraw_request(req_id, approve, admin_note=None):
+    session = get_session()
+    try:
+        req = session.query(WithdrawRequest).filter_by(id=req_id).first()
+        if not req:
+            return False, "Request not found"
+        if req.status != "pending":
+            return False, f"Already {req.status}"
+
+        if approve:
+            req.status = "approved"
+            req.admin_note = admin_note
+            req.processed_at = datetime.utcnow()
+            session.commit()
+
+            user = session.query(User).filter_by(telegram_id=req.user_id).first()
+            if user:
+                tx = Transaction(
+                    user_id=user.id, type="withdraw", amount=-req.amount,
+                    balance_after=user.balance,
+                    description=f"Withdraw {req.method} - {req.account}",
+                    status="completed"
+                )
+                session.add(tx)
+                session.commit()
+            return True, f"Approved! {req.amount:.2f} ETB to {req.account}"
+        else:
+            req.status = "rejected"
+            req.admin_note = admin_note
+            req.processed_at = datetime.utcnow()
+            user = session.query(User).filter_by(telegram_id=req.user_id).first()
+            if user:
+                user.balance += req.amount
+                tx = Transaction(
+                    user_id=user.id, type="refund", amount=req.amount,
+                    balance_after=user.balance,
+                    description="Withdraw rejected - refund",
+                    status="completed"
+                )
+                session.add(tx)
+            session.commit()
+            return True, "Rejected & refunded"
+    except Exception as e:
+        session.rollback()
+        return False, str(e)
+    finally:
+        session.close()
+
+
+def get_pending_withdraws(limit=20):
+    session = get_session()
+    try:
+        reqs = session.query(WithdrawRequest).filter_by(status="pending")\
+            .order_by(WithdrawRequest.created_at.desc()).limit(limit).all()
+        return [{
+            "id": r.id, "user_id": r.user_id, "user_name": r.user_name,
+            "amount": r.amount, "method": r.method, "account": r.account,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        } for r in reqs]
+    finally:
+        session.close()
+
+
+def get_user_withdraws(user_id, limit=10):
+    session = get_session()
+    try:
+        reqs = session.query(WithdrawRequest).filter_by(user_id=user_id)\
+            .order_by(WithdrawRequest.created_at.desc()).limit(limit).all()
+        return [{
+            "id": r.id, "amount": r.amount, "method": r.method,
+            "account": r.account, "status": r.status,
             "created_at": r.created_at.isoformat() if r.created_at else None
         } for r in reqs]
     finally:
