@@ -1,4 +1,3 @@
-// ===== Telegram init =====
 let roomId = '';
 let userId = 0;
 let userName = 'ተጫዋች';
@@ -7,7 +6,6 @@ function initTelegram() {
   const params = new URLSearchParams(window.location.search);
   const urlRoom = params.get('room');
   const urlUser = params.get('user');
-
   if (urlRoom) roomId = urlRoom;
   if (urlUser) userId = parseInt(urlUser);
 
@@ -16,41 +14,29 @@ function initTelegram() {
     tg.ready();
     tg.expand();
     const initData = tg.initDataUnsafe || {};
-    console.log('TG initData:', JSON.stringify(initData));
-
     if (!userId && initData.user && initData.user.id) {
       userId = initData.user.id;
       userName = initData.user.first_name || 'ተጫዋች';
     }
-
     if (!roomId) {
-      if (initData.chat && initData.chat.id) {
-        roomId = 'c' + initData.chat.id;
-      } else if (userId) {
-        roomId = 'u' + userId;
-      }
+      if (initData.chat && initData.chat.id) roomId = 'c' + initData.chat.id;
+      else if (userId) roomId = 'u' + userId;
     }
   }
-
   if (roomId && !userId && roomId.startsWith('u')) {
     const id = parseInt(roomId.substring(1));
     if (!isNaN(id) && id < 9007199254740991) userId = id;
   }
-
   if (!userId) {
     userId = 100000 + Math.floor(Math.random() * 899999);
-    console.log('Generated userId:', userId);
   }
-
   if (!roomId) roomId = 'u' + userId;
   if (roomId.length > 50) roomId = roomId.substring(0, 50);
-
-  console.log('✅ Final — Room:', roomId, 'User:', userId, 'Name:', userName);
+  console.log('✅ Final — Room:', roomId, 'User:', userId);
 }
 
 initTelegram();
 
-// ===== State =====
 let card = null;
 let markedSet = new Set();
 let lastCalled = null;
@@ -61,7 +47,6 @@ let lastRound = 0;
 let userBalance = 0;
 let cardPrice = 10.0;
 
-// ===== Toast =====
 function showToast(msg) {
   let toast = document.getElementById('toast');
   if (!toast) {
@@ -74,15 +59,12 @@ function showToast(msg) {
   clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(() => { toast.className = 'toast'; }, 3500);
 }
-
 function showMessage(msg) { showToast(msg); }
 
-// ===== Screens =====
 function showScreen(name) {
   if (currentScreen === name) return;
   currentScreen = name;
-  const screens = ['noGameScreen', 'pickScreen', 'gameScreen'];
-  screens.forEach(id => {
+  ['noGameScreen', 'pickScreen', 'gameScreen'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
@@ -91,7 +73,6 @@ function showScreen(name) {
   else if (name === 'game') { const e = document.getElementById('gameScreen'); if (e) e.style.display = 'block'; }
 }
 
-// ===== Balance =====
 async function fetchBalance() {
   if (!userId) return;
   try {
@@ -101,18 +82,14 @@ async function fetchBalance() {
       userBalance = data.balance;
       updateBalanceDisplay();
     }
-  } catch (e) { console.log('balance err:', e); }
+  } catch (e) {}
 }
 
 function updateBalanceDisplay() {
   const el = document.getElementById('balanceAmount');
   if (el) {
     el.textContent = userBalance.toFixed(2) + ' ETB';
-    if (userBalance < cardPrice) {
-      el.style.color = '#e74c3c';
-    } else {
-      el.style.color = '#27ae60';
-    }
+    el.style.color = userBalance < cardPrice ? '#e74c3c' : '#27ae60';
   }
 }
 
@@ -124,15 +101,37 @@ async function registerUser() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user: userId, name: userName })
     });
-  } catch (e) { console.log('register err:', e); }
+  } catch (e) {}
 }
 
-// ===== Modals =====
+async function addTestBalance() {
+  if (!userId) return;
+  if (!confirm('1000 ETB ለሙከራ ይጨመር?')) return;
+  try {
+    showToast('⏳ ገንዘብ እየተጨመረ...');
+    const r = await fetch('/api/user/test_balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: userId, amount: 1000 })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      userBalance = data.balance;
+      updateBalanceDisplay();
+      showToast('✅ 1000 ETB ተጨምሯል!');
+      closeDeposit();
+    } else {
+      showToast('⚠️ ' + (data.error || 'ስህተት'));
+    }
+  } catch (e) {
+    showToast('⚠️ የኢንተርኔት ችግር');
+  }
+}
+
 function showDeposit() {
   const modal = document.getElementById('depositModal');
   if (modal) modal.classList.add('open');
 }
-
 function closeDeposit(event) {
   if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('depositModal');
@@ -143,39 +142,31 @@ async function showHistory() {
   const modal = document.getElementById('historyModal');
   const list = document.getElementById('txList');
   if (!modal || !list) return;
-
   list.innerHTML = '<div class="tx-loading">⏳ በመጫን ላይ...</div>';
   modal.classList.add('open');
-
   try {
     const r = await fetch('/api/user/transactions?user=' + userId);
     const data = await r.json();
     const txs = data.transactions || [];
-
     if (txs.length === 0) {
       list.innerHTML = '<div class="tx-empty">📭 እስካሁን ምንም ግብይት የለም</div>';
       return;
     }
-
     list.innerHTML = '';
     txs.forEach(tx => {
       const div = document.createElement('div');
       const isPositive = tx.amount > 0;
       div.className = 'tx-item ' + (isPositive ? 'positive' : 'negative');
-
-      let icon = '💵';
-      let label = tx.type;
+      let icon = '💵', label = tx.type;
       if (tx.type === 'deposit') { icon = '⬇️'; label = 'ገንዘብ ማስገባት'; }
       else if (tx.type === 'withdraw') { icon = '⬆️'; label = 'ገንዘብ ማውጣት'; }
       else if (tx.type === 'bet') { icon = '🎫'; label = 'ካርድ ግዢ'; }
       else if (tx.type === 'win') { icon = '🏆'; label = 'BINGO ድል'; }
       else if (tx.type === 'refund') { icon = '↩️'; label = 'ተመላሽ'; }
       else if (tx.type === 'bonus') { icon = '🎁'; label = 'ቦነስ'; }
-
       const date = tx.created_at ? new Date(tx.created_at).toLocaleString('am-ET', {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
       }) : '';
-
       div.innerHTML = `
         <div class="tx-icon">${icon}</div>
         <div class="tx-info">
@@ -187,27 +178,23 @@ async function showHistory() {
       list.appendChild(div);
     });
   } catch (e) {
-    list.innerHTML = '<div class="tx-empty">⚠️ ስህተት ተፈጥሯል</div>';
+    list.innerHTML = '<div class="tx-empty">⚠️ ስህተት</div>';
   }
 }
-
 function closeHistory(event) {
   if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('historyModal');
   if (modal) modal.classList.remove('open');
 }
 
-// ===== Invite =====
 function inviteFriends() {
   const botUsername = 'Afbingobot';
   const roomUrl = 'https://t.me/' + botUsername;
   const inviteText = '🎱 Etbingo ተጫወት! አብረን እንጫወት 🎉';
-
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
     try {
-      const shareUrl = 'https://t.me/share/url?url=' +
-        encodeURIComponent(roomUrl) +
+      const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(roomUrl) +
         '&text=' + encodeURIComponent(inviteText);
       tg.openTelegramLink(shareUrl);
       return;
@@ -220,17 +207,13 @@ function inviteFriends() {
     copyToClipboard(inviteText + '\n\n' + roomUrl);
   }
 }
-
 function copyToClipboard(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => showToast('✅ ሊንኩ ተቀድቷል!'))
       .catch(() => showToast('📤 t.me/Afbingobot'));
-  } else {
-    showToast('📤 t.me/Afbingobot');
-  }
+  } else showToast('📤 t.me/Afbingobot');
 }
 
-// ===== Game API =====
 async function createGame() {
   if (!roomId) { showToast('⚠️ ክፍል አልተገኘም'); return; }
   try {
@@ -240,23 +223,13 @@ async function createGame() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat: roomId })
     });
-    if (r.ok) {
-      await fetchState();
-      showToast('✅ ጨዋታ ተፈጠረ!');
-    } else {
-      showToast('⚠️ ጨዋታ መፍጠር አልተቻለም');
-    }
-  } catch (e) {
-    showToast('⚠️ የኢንተርኔት ችግር');
-  }
+    if (r.ok) { await fetchState(); showToast('✅ ጨዋታ ተፈጠረ!'); }
+    else showToast('⚠️ ጨዋታ መፍጠር አልተቻለም');
+  } catch (e) { showToast('⚠️ የኢንተርኔት ችግር'); }
 }
 
 async function joinGame(cardNum = 0) {
-  if (!roomId || !userId) {
-    showToast('⚠️ ክፍል ወይም ተጫዋች አልተገኘም');
-    return;
-  }
-  // Pre-check balance
+  if (!roomId || !userId) { showToast('⚠️ ክፍል አልተገኘም'); return; }
   if (userBalance < cardPrice) {
     showToast('💰 ሂሳብ አይበቃም! የሚያስፈልግ: ' + cardPrice.toFixed(2) + ' ETB');
     showDeposit();
@@ -267,21 +240,14 @@ async function joinGame(cardNum = 0) {
     const r = await fetch('/api/join', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat: roomId,
-        user: userId,
-        name: userName,
-        card_num: cardNum
-      })
+      body: JSON.stringify({ chat: roomId, user: userId, name: userName, card_num: cardNum })
     });
     const data = await r.json();
     if (data.error) {
       if (data.error === 'insufficient_balance') {
         showToast('💰 ሂሳብ አይበቃም! የሚያስፈልግ: ' + (data.needed || cardPrice).toFixed(2) + ' ETB');
         showDeposit();
-      } else {
-        showToast('⚠️ ' + data.error);
-      }
+      } else showToast('⚠️ ' + data.error);
       return;
     }
     showToast('✅ ተቀላቅለሃል!');
@@ -290,11 +256,8 @@ async function joinGame(cardNum = 0) {
       updateBalanceDisplay();
     }
     await fetchState();
-  } catch (e) {
-    showToast('⚠️ የኢንተርኔት ችግር');
-  }
+  } catch (e) { showToast('⚠️ የኢንተርኔት ችግር'); }
 }
-
 function joinWithRandom() { joinGame(0); }
 
 function openPicker() {
@@ -302,13 +265,11 @@ function openPicker() {
   const modal = document.getElementById('pickerModal');
   if (modal) modal.classList.add('open');
 }
-
 function closePicker(event) {
   if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('pickerModal');
   if (modal) modal.classList.remove('open');
 }
-
 function renderPicker() {
   const grid = document.getElementById('pickerGrid');
   if (!grid) return;
@@ -350,7 +311,6 @@ function confirmNewGame() {
   if (confirm('አዲስ ጨዋታ ጀምር? ሁሉም ተጫዋቾች ይወገዳሉ!')) createGame();
 }
 
-// ===== Fetch state =====
 async function fetchState() {
   if (!roomId) { showScreen('noGame'); return; }
   try {
@@ -359,7 +319,6 @@ async function fetchState() {
     if (data.error === 'no_game') { showScreen('noGame'); return; }
     if (data.error) return;
 
-    // Card price
     if (data.card_price) {
       cardPrice = data.card_price;
       const cpEl = document.getElementById('cardPrice');
@@ -453,15 +412,12 @@ async function fetchState() {
         statusEl.classList.add('bingo');
       }
       launchConfetti();
-      // Refresh balance after win
       setTimeout(fetchBalance, 1000);
     }
 
     renderBoard();
-
-    // Periodic balance refresh
     if (Math.random() < 0.25) fetchBalance();
-  } catch (e) { console.log('fetchState err:', e); }
+  } catch (e) {}
 }
 
 function updateRoundTimer(seconds) {
@@ -475,13 +431,11 @@ function updateRoundTimer(seconds) {
   else el.classList.remove('urgent');
 }
 
-// ===== Render =====
 function renderBoard() {
   if (!card) return;
   const boardEl = document.getElementById('board');
   if (!boardEl) return;
   boardEl.innerHTML = '';
-
   const headers = ['B', 'I', 'N', 'G', 'O'];
   headers.forEach(letter => {
     const h = document.createElement('div');
@@ -489,14 +443,13 @@ function renderBoard() {
     h.textContent = letter;
     boardEl.appendChild(h);
   });
-
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
       const num = card[r][c];
       const cell = document.createElement('div');
       cell.className = 'cell';
       if (num === 'FREE') { cell.textContent = 'FREE'; cell.classList.add('free'); }
-      else { cell.textContent = num; }
+      else cell.textContent = num;
       if (markedSet.has(r + '-' + c)) cell.classList.add('marked');
       cell.onclick = () => clickCell(r, c);
       boardEl.appendChild(cell);
@@ -550,7 +503,6 @@ function launchConfetti() {
   }
 }
 
-// ===== Start =====
 registerUser().then(() => fetchBalance());
 fetchState();
 setInterval(fetchState, 2000);
