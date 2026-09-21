@@ -229,4 +229,361 @@ def api_balance():
     return jsonify({'balance': balance})
 
 @app.route('/api/user/register', methods=['POST'])
-def api_register
+def api_register():
+    data = request.json or {}
+    try:
+        user_id = int(data.get('user', 0))
+        name = str(data.get('name', 'ተጫዋች'))[:30]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+    if not user_id:
+        return jsonify({'error': 'no_user'})
+    user = get_or_create_user(user_id, first_name=name)
+    return jsonify({
+        'ok': True,
+        'balance': user.balance,
+        'games_played': user.games_played,
+        'games_won': user.games_won,
+    })
+
+@app.route('/api/user/transactions')
+def api_transactions():
+    try:
+        user_id = int(request.args.get('user', 0))
+    except ValueError:
+        return jsonify({'error': 'invalid'})
+    txs = get_user_transactions(user_id, limit=20)
+    return jsonify({'transactions': txs})
+
+@app.route('/api/user/test_balance', methods=['POST'])
+def api_test_balance():
+    data = request.json or {}
+    try:
+        user_id = int(data.get('user', 0))
+        amount = float(data.get('amount', 1000.0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+    if not user_id:
+        return jsonify({'error': 'no_user'})
+    if amount > 10000:
+        return jsonify({'error': 'max_10000'})
+    new_bal = add_balance(user_id, amount, tx_type="bonus",
+        description=f"Test bonus {amount}")
+    if new_bal is None:
+        return jsonify({'error': 'failed'})
+    return jsonify({'ok': True, 'balance': new_bal})
+
+# ============ Deposit ============
+@app.route('/api/deposit/accounts')
+def api_deposit_accounts():
+    accounts = {k: v for k, v in DEPOSIT_ACCOUNTS.items() if v}
+    return jsonify({'accounts': accounts})
+
+@app.route('/api/deposit/request', methods=['POST'])
+def api_deposit_request():
+    data = request.json or {}
+    try:
+        user_id = int(data.get('user', 0))
+        amount = float(data.get('amount', 0))
+        method = str(data.get('method', ''))[:30]
+        reference = str(data.get('reference', ''))[:100]
+        name = str(data.get('name', 'ተጫዋች'))[:30]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+
+    if not user_id or amount <= 0 or not method or not reference:
+        return jsonify({'error': 'missing_fields'})
+    if amount < 10:
+        return jsonify({'error': 'min_10'})
+    if amount > 50000:
+        return jsonify({'error': 'max_50000'})
+
+    req_id = create_deposit_request(user_id, name, amount, method, reference)
+    if not req_id:
+        return jsonify({'error': 'failed'})
+
+    try:
+        from bot import notify_admin_deposit
+        loop = get_bot_loop()
+        if loop:
+            asyncio.run_coroutine_threadsafe(notify_admin_deposit(req_id), loop)
+    except Exception as e:
+        print(f"notify err: {e}")
+
+    return jsonify({'ok': True, 'request_id': req_id})
+
+@app.route('/api/deposit/my')
+def api_my_deposits():
+    try:
+        user_id = int(request.args.get('user', 0))
+    except ValueError:
+        return jsonify({'error': 'invalid'})
+    return jsonify({'deposits': get_user_deposits(user_id, 10)})
+
+# ============ Withdraw ============
+@app.route('/api/withdraw/request', methods=['POST'])
+def api_withdraw_request():
+    data = request.json or {}
+    try:
+        user_id = int(data.get('user', 0))
+        amount = float(data.get('amount', 0))
+        method = str(data.get('method', ''))[:30]
+        account = str(data.get('account', ''))[:100]
+        name = str(data.get('name', 'ተጫዋች'))[:30]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+
+    if not user_id or amount <= 0 or not method or not account:
+        return jsonify({'error': 'missing_fields'})
+    if amount < 50:
+        return jsonify({'error': 'min_50'})
+    if amount > 10000:
+        return jsonify({'error': 'max_10000'})
+
+    balance = get_user_balance(user_id)
+    if balance < amount:
+        return jsonify({'error': 'insufficient_balance', 'balance': balance})
+
+    req_id, err = create_withdraw_request(user_id, name, amount, method, account)
+    if err:
+        return jsonify({'error': err})
+
+    try:
+        from bot import notify_admin_withdraw
+        loop = get_bot_loop()
+        if loop:
+            asyncio.run_coroutine_threadsafe(notify_admin_withdraw(req_id), loop)
+    except Exception as e:
+        print(f"notify err: {e}")
+
+    return jsonify({'ok': True, 'request_id': req_id})
+
+@app.route('/api/withdraw/my')
+def api_my_withdraws():
+    try:
+        user_id = int(request.args.get('user', 0))
+    except ValueError:
+        return jsonify({'error': 'invalid'})
+    return jsonify({'withdraws': get_user_withdraws(user_id, 10)})
+
+# ============ Leaderboard ============
+@app.route('/api/leaderboard')
+def api_leaderboard():
+    return jsonify({'leaders': get_leaderboard(10)})
+
+# ============ Game endpoints ============
+@app.route('/api/newgame', methods=['POST'])
+def api_newgame():
+    data = request.json or {}
+    room_id = str(data.get('chat', ''))
+    if not room_id:
+        return jsonify({'error': 'invalid'})
+    with games_lock:
+        games[room_id] = {
+            'called': [], 'available': list(range(1, 76)),
+            'players': {}, 'winner': None, 'winner_time': 0,
+            'auto': False, 'last_call': 0,
+            'round_number': 1, 'round_start': time.time(), 'total_pool': 0,
+        }
+    return jsonify({'ok': True})
+
+@app.route('/api/join', methods=['POST'])
+def api_join():
+    data = request.json or {}
+    room_id = str(data.get('chat', ''))
+    try:
+        user_id = int(data.get('user', 0))
+        name = str(data.get('name', 'ተጫዋች'))[:30]
+        card_num = int(data.get('card_num', 0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+    if not room_id or not user_id:
+        return jsonify({'error': 'invalid'})
+
+    with games_lock:
+        if room_id not in games:
+            return jsonify({'error': 'no_game'})
+        game = games[room_id]
+        if user_id in game['players']:
+            return jsonify({'ok': True, 'already': True})
+
+    balance = get_user_balance(user_id)
+    if balance < CARD_PRICE:
+        return jsonify({
+            'error': 'insufficient_balance',
+            'balance': balance, 'needed': CARD_PRICE
+        })
+
+    new_bal = add_balance(user_id, -CARD_PRICE, tx_type="bet",
+        description=f"Card purchase (#{card_num})")
+    if new_bal is None:
+        return jsonify({'error': 'payment_failed'})
+
+    if 1 <= card_num <= 144:
+        card = generate_seeded_card(card_num)
+    else:
+        card = generate_bingo_card()
+        card_num = 0
+
+    with games_lock:
+        if room_id not in games:
+            return jsonify({'error': 'no_game'})
+        game = games[room_id]
+        game['players'][user_id] = {
+            'name': name, 'card': card, 'card_num': card_num,
+            'marked': {(2, 2)}, 'won': 0,
+        }
+        game['total_pool'] = game.get('total_pool', 0) + CARD_PRICE
+        is_first = len(game['players']) == 1
+        is_auto = game.get('auto')
+
+    if is_first and not is_auto:
+        _reset_round(room_id)
+
+    try:
+        from database import get_session, User
+        session = get_session()
+        try:
+            user = session.query(User).filter_by(telegram_id=user_id).first()
+            if user:
+                user.games_played += 1
+                session.commit()
+        finally:
+            session.close()
+    except Exception as e:
+        print(f"stats error: {e}")
+
+    return jsonify({'ok': True, 'card_num': card_num, 'balance': new_bal})
+
+@app.route('/api/draw', methods=['POST'])
+def api_draw():
+    data = request.json or {}
+    room_id = str(data.get('chat', ''))
+    result = _do_call(room_id)
+    if result is None:
+        return jsonify({'error': 'no_game'})
+    return jsonify(result)
+
+@app.route('/api/toggle_auto', methods=['POST'])
+def api_toggle_auto():
+    data = request.json or {}
+    room_id = str(data.get('chat', ''))
+    with games_lock:
+        if room_id not in games:
+            return jsonify({'error': 'no_game'})
+        game = games[room_id]
+        game['auto'] = not game['auto']
+        game['last_call'] = 0
+        return jsonify({'auto': game['auto']})
+
+@app.route('/api/mark', methods=['POST'])
+def api_mark():
+    data = request.json or {}
+    room_id = str(data.get('chat', ''))
+    try:
+        user_id = int(data.get('user', 0))
+        r = int(data.get('r', 0))
+        c = int(data.get('c', 0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+    with games_lock:
+        if room_id not in games:
+            return jsonify({'error': 'no_game'})
+        game = games[room_id]
+        player = game['players'].get(user_id)
+        if not player:
+            return jsonify({'error': 'no_player'})
+        if (r, c) == (2, 2):
+            return jsonify({'error': 'free'})
+        num = player['card'][r][c]
+        if num not in game['called']:
+            return jsonify({'error': 'not_called'})
+        if (r, c) in player['marked']:
+            player['marked'].discard((r, c))
+        else:
+            player['marked'].add((r, c))
+        is_bingo = check_bingo(player['card'], player['marked'])
+        if is_bingo and not game['winner']:
+            game['winner'] = [{'uid': user_id, 'name': player['name']}]
+            game['winner_time'] = time.time()
+            _payout_winners(room_id, game['winner'])
+        return jsonify({
+            'marked': [list(m) for m in player['marked']],
+            'winner': [w['name'] for w in game['winner']] if game['winner'] else None,
+            'is_bingo': is_bingo,
+        })
+
+@app.route('/api/health')
+def health():
+    return jsonify({'status': 'healthy'})
+
+# ============ Auto-caller ============
+def auto_caller_loop():
+    while True:
+        time.sleep(1)
+        try:
+            with games_lock:
+                room_ids = list(games.keys())
+            for room_id in room_ids:
+                round_reset = False
+                with games_lock:
+                    if room_id not in games:
+                        continue
+                    game = games[room_id]
+                    if len(game['players']) == 0:
+                        continue
+                    now = time.time()
+                    if game.get('winner'):
+                        wt = game.get('winner_time', 0)
+                        if wt and now - wt >= BINGO_DELAY:
+                            round_reset = True
+                    else:
+                        elapsed = now - game.get('round_start', now)
+                        if elapsed >= ROUND_DURATION:
+                            round_reset = True
+                if round_reset:
+                    _reset_round(room_id)
+                    continue
+                do_call = False
+                with games_lock:
+                    if room_id not in games:
+                        continue
+                    game = games[room_id]
+                    if not game['auto']:
+                        continue
+                    if not game['available']:
+                        game['auto'] = False
+                        continue
+                    if game.get('winner'):
+                        continue
+                    now = time.time()
+                    if now - game.get('last_call', 0) < AUTO_CALL_INTERVAL:
+                        continue
+                    game['last_call'] = now
+                    do_call = True
+                if do_call:
+                    _do_call(room_id)
+        except Exception as e:
+            print(f"Auto caller error: {e}")
+
+# ============ Flask ============
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+if __name__ == '__main__':
+    try:
+        init_db()
+    except Exception as e:
+        print(f"⚠️ init_db error: {e}")
+
+    auto_thread = threading.Thread(target=auto_caller_loop, daemon=True)
+    auto_thread.start()
+
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    from bot import run_bot
+    _bot_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(_bot_loop)
+    run_bot()
