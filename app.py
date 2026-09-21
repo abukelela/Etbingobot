@@ -2,10 +2,12 @@ import os
 import time
 import random
 import threading
+import asyncio
 from flask import Flask, render_template, jsonify, request
 from database import (
     init_db, get_or_create_user, get_user_balance,
-    add_balance, get_user_transactions, get_leaderboard
+    add_balance, get_user_transactions, get_leaderboard,
+    create_deposit_request, get_user_deposits, get_pending_deposits
 )
 
 app = Flask(__name__)
@@ -17,10 +19,21 @@ AUTO_CALL_INTERVAL = 5
 CARD_PRICE = 10.0
 WINNER_TAX = 0.15
 HOUSE_FEE = 0.15
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
+
+DEPOSIT_ACCOUNTS = {
+    "telebirr": os.environ.get("DEPOSIT_TELEBIRR", ""),
+    "cbe": os.environ.get("DEPOSIT_CBE", ""),
+    "awaash": os.environ.get("DEPOSIT_AWAASH", ""),
+}
 
 # ============ Game State ============
 games = {}
-games_lock = threading.RLock()   # ← ✅ RLock (Re-entrant)
+games_lock = threading.RLock()
+_bot_loop = None
+
+def get_bot_loop():
+    return _bot_loop
 
 def generate_bingo_card():
     cols = {
@@ -116,7 +129,6 @@ def _payout_winners(room_id, winners):
             uid = w['uid']
             if uid in game['players']:
                 game['players'][uid]['won'] = net_prize
-        # Outside the loop — DB ስራ በ Lock ውስጥ አይሁን
         for w in winners:
             uid = w['uid']
             try:
@@ -124,7 +136,6 @@ def _payout_winners(room_id, winners):
                     description=f"BINGO win (tax {tax:.2f})")
             except Exception as e:
                 print(f"payout error for {uid}: {e}")
-        # Update winner stats
         try:
             from database import get_session, User
             session = get_session()
@@ -245,7 +256,6 @@ def api_transactions():
 
 @app.route('/api/user/test_balance', methods=['POST'])
 def api_test_balance():
-    """ለሙከራ ብቻ — 1000 ETB ይጨምራል"""
     data = request.json or {}
     try:
         user_id = int(data.get('user', 0))
@@ -262,10 +272,59 @@ def api_test_balance():
         return jsonify({'error': 'failed'})
     return jsonify({'ok': True, 'balance': new_bal})
 
+# ============ Deposit ============
+@app.route('/api/deposit/accounts')
+def api_deposit_accounts():
+    accounts = {k: v for k, v in DEPOSIT_ACCOUNTS.items() if v}
+    return jsonify({'accounts': accounts})
+
+@app.route('/api/deposit/request', methods=['POST'])
+def api_deposit_request():
+    data = request.json or {}
+    try:
+        user_id = int(data.get('user', 0))
+        amount = float(data.get('amount', 0))
+        method = str(data.get('method', ''))[:30]
+        reference = str(data.get('reference', ''))[:100]
+        name = str(data.get('name', 'ተጫዋች'))[:30]
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+
+    if not user_id or amount <= 0 or not method or not reference:
+        return jsonify({'error': 'missing_fields'})
+    if amount < 10:
+        return jsonify({'error': 'min_10'})
+    if amount > 50000:
+        return jsonify({'error': 'max_50000'})
+
+    req_id = create_deposit_request(user_id, name, amount, method, reference)
+    if not req_id:
+        return jsonify({'error': 'failed'})
+
+    try:
+        from bot import notify_admin_deposit
+        loop = get_bot_loop()
+        if loop:
+            asyncio.run_coroutine_threadsafe(notify_admin_deposit(req_id), loop)
+    except Exception as e:
+        print(f"notify err: {e}")
+
+    return jsonify({'ok': True, 'request_id': req_id})
+
+@app.route('/api/deposit/my')
+def api_my_deposits():
+    try:
+        user_id = int(request.args.get('user', 0))
+    except ValueError:
+        return jsonify({'error': 'invalid'})
+    return jsonify({'deposits': get_user_deposits(user_id, 10)})
+
+# ============ Leaderboard ============
 @app.route('/api/leaderboard')
 def api_leaderboard():
     return jsonify({'leaders': get_leaderboard(10)})
 
+# ============ Game endpoints ============
 @app.route('/api/newgame', methods=['POST'])
 def api_newgame():
     data = request.json or {}
@@ -274,16 +333,10 @@ def api_newgame():
         return jsonify({'error': 'invalid'})
     with games_lock:
         games[room_id] = {
-            'called': [],
-            'available': list(range(1, 76)),
-            'players': {},
-            'winner': None,
-            'winner_time': 0,
-            'auto': False,
-            'last_call': 0,
-            'round_number': 1,
-            'round_start': time.time(),
-            'total_pool': 0,
+            'called': [], 'available': list(range(1, 76)),
+            'players': {}, 'winner': None, 'winner_time': 0,
+            'auto': False, 'last_call': 0,
+            'round_number': 1, 'round_start': time.time(), 'total_pool': 0,
         }
     return jsonify({'ok': True})
 
@@ -307,16 +360,13 @@ def api_join():
         if user_id in game['players']:
             return jsonify({'ok': True, 'already': True})
 
-    # Balance check outside lock
     balance = get_user_balance(user_id)
     if balance < CARD_PRICE:
         return jsonify({
             'error': 'insufficient_balance',
-            'balance': balance,
-            'needed': CARD_PRICE
+            'balance': balance, 'needed': CARD_PRICE
         })
 
-    # Deduct balance (DB ስራ)
     new_bal = add_balance(user_id, -CARD_PRICE, tx_type="bet",
         description=f"Card purchase (#{card_num})")
     if new_bal is None:
@@ -333,21 +383,16 @@ def api_join():
             return jsonify({'error': 'no_game'})
         game = games[room_id]
         game['players'][user_id] = {
-            'name': name,
-            'card': card,
-            'card_num': card_num,
-            'marked': {(2, 2)},
-            'won': 0,
+            'name': name, 'card': card, 'card_num': card_num,
+            'marked': {(2, 2)}, 'won': 0,
         }
         game['total_pool'] = game.get('total_pool', 0) + CARD_PRICE
         is_first = len(game['players']) == 1
         is_auto = game.get('auto')
 
-    # Reset round outside lock (ከ RLock ቢሆንም ደህንነቱ የተጠበቀ)
     if is_first and not is_auto:
         _reset_round(room_id)
 
-    # Update player stats
     try:
         from database import get_session, User
         session = get_session()
@@ -492,4 +537,6 @@ if __name__ == '__main__':
     flask_thread.start()
 
     from bot import run_bot
+    _bot_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(_bot_loop)
     run_bot()
