@@ -36,7 +36,6 @@ async def cmd_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin — pending deposits list"""
     user_id = update.effective_user.id
     if user_id != ADMIN_ID:
         await update.message.reply_text("⚠️ Admin only")
@@ -61,8 +60,32 @@ async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown')
 
 
+async def cmd_pending_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("⚠️ Admin only")
+        return
+    from database import get_pending_withdraws
+    reqs = get_pending_withdraws(20)
+    if not reqs:
+        await update.message.reply_text("✅ Pending withdraw የለም")
+        return
+    for r in reqs:
+        txt = (f"💸 *Withdraw Request #{r['id']}*\n\n"
+               f"👤 {r['user_name']} (`{r['user_id']}`)\n"
+               f"💵 {r['amount']:.2f} ETB\n"
+               f"🏦 {r['method']}\n"
+               f"📱 `{r['account']}`\n"
+               f"🕐 {r['created_at'][:16]}")
+        kb = [[
+            InlineKeyboardButton("✅ Approve", callback_data=f"wd_ok_{r['id']}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"wd_no_{r['id']}"),
+        ]]
+        await update.message.reply_text(txt, reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode='Markdown')
+
+
 async def cb_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin approves/rejects deposit"""
     query = update.callback_query
     user_id = query.from_user.id
     if user_id != ADMIN_ID:
@@ -85,11 +108,11 @@ async def cb_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if ok:
         emoji = "✅" if approve else "❌"
+        status = "approved" if approve else "rejected"
         await query.edit_message_text(
-            f"{emoji} *Request #{req_id}* {req.status}\n\n{msg}",
+            f"{emoji} *Deposit #{req_id}* {status}\n\n{msg}",
             parse_mode='Markdown'
         )
-        # Notify user
         try:
             if approve:
                 notif = (f"✅ ያስገቡት {req.amount:.2f} ETB "
@@ -104,8 +127,50 @@ async def cb_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"⚠️ {msg}", show_alert=True)
 
 
+async def cb_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    if user_id != ADMIN_ID:
+        await query.answer("⚠️ Admin only", show_alert=True)
+        return
+
+    data = query.data
+    parts = data.split("_")
+    action = parts[1]
+    req_id = int(parts[2])
+
+    from database import process_withdraw_request, get_withdraw_request
+    req = get_withdraw_request(req_id)
+    if not req:
+        await query.answer("⚠️ Not found", show_alert=True)
+        return
+
+    approve = (action == "ok")
+    ok, msg = process_withdraw_request(req_id, approve)
+
+    if ok:
+        emoji = "✅" if approve else "❌"
+        status = "approved" if approve else "rejected"
+        await query.edit_message_text(
+            f"{emoji} *Withdraw #{req_id}* {status}\n\n{msg}",
+            parse_mode='Markdown'
+        )
+        try:
+            if approve:
+                notif = (f"✅ ያወጡት {req.amount:.2f} ETB "
+                        f"ወደ `{req.account}` ተልኳል!\n🎉")
+            else:
+                notif = (f"❌ ያወጡት {req.amount:.2f} ETB "
+                        f"ውድቅ ሆኗል። ሂሳብዎ ተመልሷል።")
+            await context.bot.send_message(req.user_id, notif,
+                parse_mode='Markdown')
+        except Exception as e:
+            print(f"notify user err: {e}")
+    else:
+        await query.answer(f"⚠️ {msg}", show_alert=True)
+
+
 async def notify_admin_deposit(req_id):
-    """Send notification to admin about new deposit request"""
     from database import get_deposit_request
     req = get_deposit_request(req_id)
     if not req or not ADMIN_ID:
@@ -130,6 +195,31 @@ async def notify_admin_deposit(req_id):
         print(f"notify admin err: {e}")
 
 
+async def notify_admin_withdraw(req_id):
+    from database import get_withdraw_request
+    req = get_withdraw_request(req_id)
+    if not req or not ADMIN_ID:
+        return
+    txt = (f"💸 *አዲስ Withdraw Request #{req.id}*\n\n"
+           f"👤 {req.user_name}\n"
+           f"🆔 `{req.user_id}`\n"
+           f"💵 *{req.amount:.2f} ETB*\n"
+           f"🏦 {req.method}\n"
+           f"📱 ወደ: `{req.account}`")
+    kb = [[
+        InlineKeyboardButton("✅ Approve", callback_data=f"wd_ok_{req.id}"),
+        InlineKeyboardButton("❌ Reject", callback_data=f"wd_no_{req.id}"),
+    ]]
+    try:
+        from telegram import Bot
+        bot = Bot(TOKEN)
+        async with bot:
+            await bot.send_message(ADMIN_ID, txt,
+                reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    except Exception as e:
+        print(f"notify admin err: {e}")
+
+
 def run_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -138,6 +228,8 @@ def run_bot():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("game", cmd_game))
     app.add_handler(CommandHandler("pending", cmd_pending))
+    app.add_handler(CommandHandler("pendingwd", cmd_pending_withdraw))
     app.add_handler(CallbackQueryHandler(cb_deposit, pattern=r"^dep_"))
+    app.add_handler(CallbackQueryHandler(cb_withdraw, pattern=r"^wd_"))
     print("🤖 Bot ተጀምሯል...")
     app.run_polling(close_loop=False)
