@@ -9,6 +9,24 @@
 </head>
 <body>
 <div class="container">
+
+  <!-- Balance Bar -->
+  <div class="balance-bar">
+    <div class="balance-left">
+      <div class="balance-label">💰 ሂሳብዎ</div>
+      <div class="balance-amount" id="balanceAmount">0.00 ETB</div>
+    </div>
+    <div class="balance-actions">
+      <button class="balance-btn deposit" onclick="showDeposit()">
+        <span>➕</span>
+      </button>
+      <button class="balance-btn history" onclick="showHistory()">
+        <span>📜</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Header bar -->
   <div class="header-bar">
     <div class="header-left">
       <div class="player-info" id="playerInfo">👤 ተጫዋች</div>
@@ -17,12 +35,22 @@
     <div class="called-badge" id="calledBadge">📢 0/75</div>
   </div>
 
+  <!-- Round bar -->
+  <div class="round-bar">
+    <div class="round-info">
+      <span class="round-num" id="roundNum">🔄 Round 1</span>
+      <span class="round-timer" id="roundTimer">⏰ --:--</span>
+    </div>
+  </div>
+
+  <!-- Invite -->
   <div class="invite-bar">
     <button class="btn-invite" onclick="inviteFriends()">
       <span>📤</span> ጓደኞችን ጋብዝ
     </button>
   </div>
 
+  <!-- No Game Screen -->
   <div id="noGameScreen" class="screen">
     <div class="empty-icon">🎱</div>
     <h2>Etbingo</h2>
@@ -32,10 +60,11 @@
     </button>
   </div>
 
+  <!-- Pick Card Screen -->
   <div id="pickScreen" class="screen" style="display:none">
     <div class="empty-icon">🎫</div>
     <h2>ካርድዎን ይምረጡ</h2>
-    <p class="empty-text">ከ 1 እስከ 144 ቁጥር ይምረጡ</p>
+    <p class="empty-text">የካርድ ዋጋ: <strong id="cardPrice">10.00</strong> ETB</p>
     <button class="btn-primary" onclick="openPicker()">
       <span>🎫</span> ካርድ ምረጥ
     </button>
@@ -44,6 +73,7 @@
     </button>
   </div>
 
+  <!-- Game Screen -->
   <div id="gameScreen" class="screen" style="display:none">
     <div class="caller">
       <div class="last-called-label">🎯 የተጠራው ቁጥር</div>
@@ -68,16 +98,43 @@
   </div>
 </div>
 
+<!-- Card Picker Modal -->
 <div id="pickerModal" class="modal" onclick="closePicker(event)">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <h2>🎫 የካርድ ቁጥር ይምረጡ (1-144)</h2>
+      <h2>🎫 የካርድ ቁጥር ይምረጡ</h2>
       <button class="modal-close" onclick="closePicker()">✕</button>
     </div>
     <div class="picker-info">
       <div class="picker-hint">ቁጥር ይምረጡ — ራሱ ካርድዎን ይሰጣል</div>
     </div>
     <div class="number-grid-picker" id="pickerGrid"></div>
+  </div>
+</div>
+
+<!-- Transactions Modal -->
+<div id="historyModal" class="modal" onclick="closeHistory(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>📜 የግብይት ታሪክ</h2>
+      <button class="modal-close" onclick="closeHistory()">✕</button>
+    </div>
+    <div id="txList" class="tx-list"></div>
+  </div>
+</div>
+
+<!-- Deposit Info Modal -->
+<div id="depositModal" class="modal" onclick="closeDeposit(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>➕ ገንዘብ ማስገባት</h2>
+      <button class="modal-close" onclick="closeDeposit()">✕</button>
+    </div>
+    <div class="deposit-body">
+      <div class="deposit-icon">💳</div>
+      <p class="deposit-text">Chapa ጋር ለመክፈል ቅርብ ቀን ይጠብቁ</p>
+      <p class="deposit-sub">በአሁኑ ጊዜ Chapa Integration በመሰራት ላይ ነው።</p>
+    </div>
   </div>
 </div>
 
