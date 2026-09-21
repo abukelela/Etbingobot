@@ -96,12 +96,10 @@ def _do_call(room_id):
         if winners and not game['winner']:
             game['winner'] = winners
             game['winner_time'] = time.time()
-            # 💰 አሸናፊዎችን ክፈል
             _payout_winners(room_id, winners)
         return {'num': num, 'winners': [w['name'] for w in winners], 'done': not game['available']}
 
 def _payout_winners(room_id, winners):
-    """አሸናፊዎችን ክፈል"""
     with games_lock:
         if room_id not in games:
             return
@@ -109,23 +107,18 @@ def _payout_winners(room_id, winners):
         pool = game.get('total_pool', 0)
         if pool <= 0 or not winners:
             return
-
         house_cut = pool * HOUSE_FEE
         prize_pool = pool - house_cut
         per_winner = prize_pool / len(winners)
         tax = per_winner * WINNER_TAX
         net_prize = per_winner - tax
-
         for w in winners:
             uid = w['uid']
             if uid in game['players']:
                 game['players'][uid]['won'] = net_prize
             try:
-                add_balance(
-                    uid, net_prize, tx_type="win",
-                    description=f"BINGO win (tax {tax:.2f})"
-                )
-                # Update game stats
+                add_balance(uid, net_prize, tx_type="win",
+                    description=f"BINGO win (tax {tax:.2f})")
                 from database import get_session, User
                 session = get_session()
                 try:
@@ -137,7 +130,6 @@ def _payout_winners(room_id, winners):
                     session.close()
             except Exception as e:
                 print(f"payout error for {uid}: {e}")
-
         print(f"💰 Paid {per_winner:.2f} x {len(winners)} (tax {tax:.2f})")
 
 def _reset_round(room_id):
@@ -243,6 +235,25 @@ def api_transactions():
     txs = get_user_transactions(user_id, limit=20)
     return jsonify({'transactions': txs})
 
+@app.route('/api/user/test_balance', methods=['POST'])
+def api_test_balance():
+    """ለሙከራ ብቻ — 1000 ETB ይጨምራል"""
+    data = request.json or {}
+    try:
+        user_id = int(data.get('user', 0))
+        amount = float(data.get('amount', 1000.0))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'invalid'})
+    if not user_id:
+        return jsonify({'error': 'no_user'})
+    if amount > 10000:
+        return jsonify({'error': 'max_10000'})
+    new_bal = add_balance(user_id, amount, tx_type="bonus",
+        description=f"Test bonus {amount}")
+    if new_bal is None:
+        return jsonify({'error': 'failed'})
+    return jsonify({'ok': True, 'balance': new_bal})
+
 @app.route('/api/leaderboard')
 def api_leaderboard():
     return jsonify({'leaders': get_leaderboard(10)})
@@ -288,7 +299,6 @@ def api_join():
         if user_id in game['players']:
             return jsonify({'ok': True, 'already': True})
 
-    # 💰 ሂሳብ አረጋግጥ
     balance = get_user_balance(user_id)
     if balance < CARD_PRICE:
         return jsonify({
@@ -297,11 +307,8 @@ def api_join():
             'needed': CARD_PRICE
         })
 
-    # 💸 ካርድ ዋጋ ቀንስ
-    new_bal = add_balance(
-        user_id, -CARD_PRICE, tx_type="bet",
-        description=f"Card purchase (#{card_num})"
-    )
+    new_bal = add_balance(user_id, -CARD_PRICE, tx_type="bet",
+        description=f"Card purchase (#{card_num})")
     if new_bal is None:
         return jsonify({'error': 'payment_failed'})
 
@@ -323,11 +330,9 @@ def api_join():
             'won': 0,
         }
         game['total_pool'] = game.get('total_pool', 0) + CARD_PRICE
-
         if len(game['players']) == 1 and not game.get('auto'):
             _reset_round(room_id)
 
-    # Update user stats
     try:
         from database import get_session, User
         session = get_session()
@@ -341,11 +346,7 @@ def api_join():
     except Exception as e:
         print(f"stats error: {e}")
 
-    return jsonify({
-        'ok': True,
-        'card_num': card_num,
-        'balance': new_bal,
-    })
+    return jsonify({'ok': True, 'card_num': card_num, 'balance': new_bal})
 
 @app.route('/api/draw', methods=['POST'])
 def api_draw():
