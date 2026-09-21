@@ -46,7 +46,6 @@ let depAccounts = {};
 let depSelectedMethod = null;
 let wdSelectedMethod = null;
 
-// ===== Toast =====
 function showToast(msg) {
   let toast = document.getElementById('toast');
   if (!toast) {
@@ -73,7 +72,6 @@ function showScreen(name) {
   else if (name === 'game') { const e = document.getElementById('gameScreen'); if (e) e.style.display = 'block'; }
 }
 
-// ===== Balance =====
 async function fetchBalance() {
   if (!userId) return;
   try {
@@ -194,7 +192,7 @@ async function submitDeposit() {
     });
     const data = await r.json();
     if (data.ok) {
-      showToast('✅ ጥያቄዎ ተልኳል! Admin ሲያረጋግጥ ይነገርዎታል');
+      showToast('✅ ጥያቄዎ ተልኳል!');
       closeDeposit();
       document.getElementById('depAmount').value = '';
       document.getElementById('depRef').value = '';
@@ -244,7 +242,7 @@ async function submitWithdraw() {
   if (amount > 10000) { showToast('⚠️ ከ 10,000 በላይ አይቻልም'); return; }
   if (amount > userBalance) { showToast('💰 ሂሳብ አይበቃም!'); return; }
 
-  if (!confirm('💸 ' + amount.toFixed(2) + ' ETB ወደ ' + account + ' ይውጣ?\n\n⚠️ ጥያቄው Admin ሲያረጋግጥ ገንዘቡ ይላካል።')) return;
+  if (!confirm('💸 ' + amount.toFixed(2) + ' ETB ወደ ' + account + ' ይውጣ?')) return;
 
   const btn = document.getElementById('wdSubmit');
   btn.disabled = true;
@@ -261,15 +259,11 @@ async function submitWithdraw() {
     });
     const data = await r.json();
     if (data.ok) {
-      showToast('✅ ጥያቄዎ ተልኳል! ሂሳብዎ ተቆጥቧል');
+      showToast('✅ ጥያቄዎ ተልኳል!');
       closeWithdraw();
       await fetchBalance();
     } else {
-      if (data.error === 'insufficient_balance') {
-        showToast('💰 ሂሳብ አይበቃም!');
-      } else {
-        showToast('⚠️ ' + (data.error || 'ስህተት'));
-      }
+      showToast('⚠️ ' + (data.error || 'ስህተት'));
     }
   } catch (e) {
     showToast('⚠️ የኢንተርኔት ችግር');
@@ -375,7 +369,7 @@ async function createGame() {
 async function joinGame(cardNum = 0) {
   if (!roomId || !userId) { showToast('⚠️ ክፍል አልተገኘም'); return; }
   if (userBalance < cardPrice) {
-    showToast('💰 ሂሳብ አይበቃም! የሚያስፈልግ: ' + cardPrice.toFixed(2) + ' ETB');
+    showToast('💰 ሂሳብ አይበቃም!');
     showDeposit();
     return;
   }
@@ -593,4 +587,15 @@ function renderBoard() {
       else cell.textContent = num;
       if (markedSet.has(r + '-' + c)) cell.classList.add('marked');
       cell.onclick = () => clickCell(r, c);
-   
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+async function clickCell(r, c) {
+  if (!card || gameOver) return;
+  if (card[r][c] === 'FREE') return;
+  try {
+    const resp = await fetch('/api/mark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application
