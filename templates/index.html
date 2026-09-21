@@ -20,6 +20,9 @@
       <button class="balance-btn deposit" onclick="showDeposit()">
         <span>➕</span>
       </button>
+      <button class="balance-btn withdraw" onclick="showWithdraw()">
+        <span>💸</span>
+      </button>
       <button class="balance-btn history" onclick="showHistory()">
         <span>📜</span>
       </button>
@@ -132,13 +135,11 @@
     </div>
 
     <div class="deposit-body">
-      <!-- Step 1: Method Selection -->
       <div id="depStep1">
         <p class="deposit-step-title">1️⃣ የክፍያ ዘዴ ይምረጡ</p>
         <div class="method-list" id="methodList"></div>
       </div>
 
-      <!-- Step 2: Send Money Info -->
       <div id="depStep2" style="display:none">
         <p class="deposit-step-title">2️⃣ ገንዘብ ይላኩ</p>
         <div class="account-box">
@@ -166,7 +167,52 @@
   </div>
 </div>
 
+<!-- Withdraw Modal -->
+<div id="withdrawModal" class="modal" onclick="closeWithdraw(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>💸 ገንዘብ ማውጣት</h2>
+      <button class="modal-close" onclick="closeWithdraw()">✕</button>
+    </div>
+
+    <div class="deposit-body">
+      <div class="balance-display">
+        <div class="balance-display-label">💰 ያለዎ ሂሳብ</div>
+        <div class="balance-display-amount" id="wdBalance">0.00 ETB</div>
+      </div>
+
+      <p class="deposit-step-title">1️⃣ የመውጫ ዘዴ ይምረጡ</p>
+      <div class="method-list" id="wdMethodList">
+        <button class="method-btn" onclick="selectWdMethod('telebirr')">📱 Telebirr</button>
+        <button class="method-btn" onclick="selectWdMethod('cbe')">🏦 CBE Birr</button>
+        <button class="method-btn" onclick="selectWdMethod('awaash')">💳 Awaash</button>
+      </div>
+
+      <p class="deposit-step-title">2️⃣ የአካውንት ቁጥርዎን ያስገቡ</p>
+      <div class="form-group">
+        <label>📱 የስልክ / የአካውንት ቁጥር</label>
+        <input type="text" id="wdAccount" placeholder="0912345678" maxlength="50" />
+      </div>
+
+      <p class="deposit-step-title">3️⃣ የሚያወጡትን መጠን ያስገቡ</p>
+      <div class="form-group">
+        <label>💵 መጠን (ETB) — ቢያንስ 50</label>
+        <input type="number" id="wdAmount" placeholder="100" min="50" max="10000" />
+      </div>
+
+      <div class="withdraw-note">
+        ⚠️ ጥያቄዎ ለ Admin ይላካል። ከ 30 ደቂቃ በኋላ ይጠብቁ።
+      </div>
+
+      <div class="deposit-buttons">
+        <button class="btn-back" onclick="closeWithdraw()">← ሰርዝ</button>
+        <button class="btn-submit" id="wdSubmit" onclick="submitWithdraw()">✅ ጥያቄ ላክ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="confetti"></div>
 <script src="/static/script.js"></script>
 </body>
-</html>
+                                                         </html>
