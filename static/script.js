@@ -25,16 +25,12 @@ function initTelegram() {
   }
   if (roomId && !userId && roomId.startsWith('u')) {
     const id = parseInt(roomId.substring(1));
-    if (!isNaN(id) && id < 9007199254740991) userId = id;
+    if (!isNaN(id)) userId = id;
   }
-  if (!userId) {
-    userId = 100000 + Math.floor(Math.random() * 899999);
-  }
+  if (!userId) userId = 100000 + Math.floor(Math.random() * 899999);
   if (!roomId) roomId = 'u' + userId;
-  if (roomId.length > 50) roomId = roomId.substring(0, 50);
-  console.log('✅ Final — Room:', roomId, 'User:', userId);
+  console.log('Room:', roomId, 'User:', userId);
 }
-
 initTelegram();
 
 let card = null;
@@ -46,7 +42,10 @@ let currentScreen = 'loading';
 let lastRound = 0;
 let userBalance = 0;
 let cardPrice = 10.0;
+let depAccounts = {};
+let depSelectedMethod = null;
 
+// ===== Toast =====
 function showToast(msg) {
   let toast = document.getElementById('toast');
   if (!toast) {
@@ -73,6 +72,7 @@ function showScreen(name) {
   else if (name === 'game') { const e = document.getElementById('gameScreen'); if (e) e.style.display = 'block'; }
 }
 
+// ===== Balance =====
 async function fetchBalance() {
   if (!userId) return;
   try {
@@ -104,40 +104,113 @@ async function registerUser() {
   } catch (e) {}
 }
 
-async function addTestBalance() {
-  if (!userId) return;
-  if (!confirm('1000 ETB ለሙከራ ይጨመር?')) return;
-  try {
-    showToast('⏳ ገንዘብ እየተጨመረ...');
-    const r = await fetch('/api/user/test_balance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: userId, amount: 1000 })
-    });
-    const data = await r.json();
-    if (data.ok) {
-      userBalance = data.balance;
-      updateBalanceDisplay();
-      showToast('✅ 1000 ETB ተጨምሯል!');
-      closeDeposit();
-    } else {
-      showToast('⚠️ ' + (data.error || 'ስህተት'));
-    }
-  } catch (e) {
-    showToast('⚠️ የኢንተርኔት ችግር');
-  }
+// ===== Deposit =====
+async function showDeposit() {
+  const modal = document.getElementById('depositModal');
+  if (!modal) return;
+  depSelectedMethod = null;
+  document.getElementById('depStep1').style.display = 'block';
+  document.getElementById('depStep2').style.display = 'none';
+  modal.classList.add('open');
+  await loadDepositAccounts();
 }
 
-function showDeposit() {
-  const modal = document.getElementById('depositModal');
-  if (modal) modal.classList.add('open');
-}
 function closeDeposit(event) {
   if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('depositModal');
   if (modal) modal.classList.remove('open');
 }
 
+async function loadDepositAccounts() {
+  const list = document.getElementById('methodList');
+  if (!list) return;
+  list.innerHTML = '<div class="tx-loading">⏳ በመጫን ላይ...</div>';
+  try {
+    const r = await fetch('/api/deposit/accounts');
+    const data = await r.json();
+    depAccounts = data.accounts || {};
+    const keys = Object.keys(depAccounts);
+    if (keys.length === 0) {
+      list.innerHTML = '<div class="tx-empty">⚠️ የክፍያ ዘዴ አልተዘጋጀም</div>';
+      return;
+    }
+    list.innerHTML = '';
+    const methodNames = { telebirr: '📱 Telebirr', cbe: '🏦 CBE Birr', awaash: '💳 Awaash' };
+    keys.forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'method-btn';
+      btn.textContent = methodNames[key] || key;
+      btn.onclick = () => selectMethod(key);
+      list.appendChild(btn);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="tx-empty">⚠️ ስህተት</div>';
+  }
+}
+
+function selectMethod(method) {
+  depSelectedMethod = method;
+  const info = depAccounts[method] || '';
+  document.getElementById('accountInfo').textContent = info;
+  document.getElementById('depStep1').style.display = 'none';
+  document.getElementById('depStep2').style.display = 'block';
+}
+
+function depBack() {
+  document.getElementById('depStep1').style.display = 'block';
+  document.getElementById('depStep2').style.display = 'none';
+  depSelectedMethod = null;
+}
+
+function copyAccount() {
+  const info = document.getElementById('accountInfo').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(info).then(() => showToast('✅ ተቀድቷል!'));
+  }
+}
+
+async function submitDeposit() {
+  if (!depSelectedMethod) { showToast('⚠️ ዘዴ ይምረጡ'); return; }
+  const amount = parseFloat(document.getElementById('depAmount').value);
+  const ref = document.getElementById('depRef').value.trim();
+  if (!amount || amount < 10) { showToast('⚠️ ቢያንስ 10 ETB'); return; }
+  if (amount > 50000) { showToast('⚠️ ከ 50,000 በላይ አይቻልም'); return; }
+  if (!ref) { showToast('⚠️ Reference ያስፈልጋል'); return; }
+
+  const btn = document.getElementById('depSubmit');
+  btn.disabled = true;
+  btn.textContent = '⏳ በመላክ ላይ...';
+
+  try {
+    const r = await fetch('/api/deposit/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: userId,
+        name: userName,
+        amount: amount,
+        method: depSelectedMethod,
+        reference: ref
+      })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      showToast('✅ ጥያቄዎ ተልኳል! Admin ሲያረጋግጥ ይነገርዎታል');
+      closeDeposit();
+      document.getElementById('depAmount').value = '';
+      document.getElementById('depRef').value = '';
+    } else {
+      showToast('⚠️ ' + (data.error || 'ስህተት'));
+    }
+  } catch (e) {
+    showToast('⚠️ የኢንተርኔት ችግር');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ ላክ';
+  }
+}
+
+// ===== History =====
 async function showHistory() {
   const modal = document.getElementById('historyModal');
   const list = document.getElementById('txList');
@@ -181,12 +254,14 @@ async function showHistory() {
     list.innerHTML = '<div class="tx-empty">⚠️ ስህተት</div>';
   }
 }
+
 function closeHistory(event) {
   if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
   const modal = document.getElementById('historyModal');
   if (modal) modal.classList.remove('open');
 }
 
+// ===== Invite =====
 function inviteFriends() {
   const botUsername = 'Afbingobot';
   const roomUrl = 'https://t.me/' + botUsername;
@@ -211,9 +286,10 @@ function copyToClipboard(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => showToast('✅ ሊንኩ ተቀድቷል!'))
       .catch(() => showToast('📤 t.me/Afbingobot'));
-  } else showToast('📤 t.me/Afbingobot');
+  }
 }
 
+// ===== Game API =====
 async function createGame() {
   if (!roomId) { showToast('⚠️ ክፍል አልተገኘም'); return; }
   try {
@@ -373,20 +449,17 @@ async function fetchState() {
     }
 
     const autoBtn = document.getElementById('autoBtn');
-    const autoIcon = document.getElementById('autoIcon');
-    const autoText = document.getElementById('autoText');
-    const autoStatus = document.getElementById('autoStatus');
     if (autoBtn) {
       if (data.auto) {
         autoBtn.classList.add('running');
-        if (autoIcon) autoIcon.textContent = '⏸️';
-        if (autoText) autoText.textContent = 'አቁም';
-        if (autoStatus) autoStatus.textContent = '🤖 ራስ-ሰር እየሰራ ነው';
+        const ai = document.getElementById('autoIcon'); if (ai) ai.textContent = '⏸️';
+        const at = document.getElementById('autoText'); if (at) at.textContent = 'አቁም';
+        const as = document.getElementById('autoStatus'); if (as) as.textContent = '🤖 ራስ-ሰር እየሰራ ነው';
       } else {
         autoBtn.classList.remove('running');
-        if (autoIcon) autoIcon.textContent = '▶️';
-        if (autoText) autoText.textContent = 'ራስ-ሰር';
-        if (autoStatus) autoStatus.textContent = '';
+        const ai = document.getElementById('autoIcon'); if (ai) ai.textContent = '▶️';
+        const at = document.getElementById('autoText'); if (at) at.textContent = 'ራስ-ሰር';
+        const as = document.getElementById('autoStatus'); if (as) as.textContent = '';
       }
     }
 
