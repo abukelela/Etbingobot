@@ -29,8 +29,8 @@ function initTelegram() {
   }
   if (!userId) userId = 100000 + Math.floor(Math.random() * 899999);
   if (!roomId) roomId = 'u' + userId;
-  console.log('Room:', roomId, 'User:', userId);
 }
+
 initTelegram();
 
 let card = null;
@@ -44,6 +44,7 @@ let userBalance = 0;
 let cardPrice = 10.0;
 let depAccounts = {};
 let depSelectedMethod = null;
+let wdSelectedMethod = null;
 
 // ===== Toast =====
 function showToast(msg) {
@@ -91,6 +92,8 @@ function updateBalanceDisplay() {
     el.textContent = userBalance.toFixed(2) + ' ETB';
     el.style.color = userBalance < cardPrice ? '#e74c3c' : '#27ae60';
   }
+  const wd = document.getElementById('wdBalance');
+  if (wd) wd.textContent = userBalance.toFixed(2) + ' ETB';
 }
 
 async function registerUser() {
@@ -104,7 +107,7 @@ async function registerUser() {
   } catch (e) {}
 }
 
-// ===== Deposit =====
+// ===== DEPOSIT =====
 async function showDeposit() {
   const modal = document.getElementById('depositModal');
   if (!modal) return;
@@ -135,11 +138,11 @@ async function loadDepositAccounts() {
       return;
     }
     list.innerHTML = '';
-    const methodNames = { telebirr: '📱 Telebirr', cbe: '🏦 CBE Birr', awaash: '💳 Awaash' };
+    const names = { telebirr: '📱 Telebirr', cbe: '🏦 CBE Birr', awaash: '💳 Awaash' };
     keys.forEach(key => {
       const btn = document.createElement('button');
       btn.className = 'method-btn';
-      btn.textContent = methodNames[key] || key;
+      btn.textContent = names[key] || key;
       btn.onclick = () => selectMethod(key);
       list.appendChild(btn);
     });
@@ -150,8 +153,7 @@ async function loadDepositAccounts() {
 
 function selectMethod(method) {
   depSelectedMethod = method;
-  const info = depAccounts[method] || '';
-  document.getElementById('accountInfo').textContent = info;
+  document.getElementById('accountInfo').textContent = depAccounts[method] || '';
   document.getElementById('depStep1').style.display = 'none';
   document.getElementById('depStep2').style.display = 'block';
 }
@@ -186,11 +188,8 @@ async function submitDeposit() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user: userId,
-        name: userName,
-        amount: amount,
-        method: depSelectedMethod,
-        reference: ref
+        user: userId, name: userName, amount: amount,
+        method: depSelectedMethod, reference: ref
       })
     });
     const data = await r.json();
@@ -207,6 +206,76 @@ async function submitDeposit() {
   } finally {
     btn.disabled = false;
     btn.textContent = '✅ ላክ';
+  }
+}
+
+// ===== WITHDRAW =====
+function showWithdraw() {
+  const modal = document.getElementById('withdrawModal');
+  if (!modal) return;
+  wdSelectedMethod = null;
+  document.querySelectorAll('#wdMethodList .method-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('wdAccount').value = '';
+  document.getElementById('wdAmount').value = '';
+  const wd = document.getElementById('wdBalance');
+  if (wd) wd.textContent = userBalance.toFixed(2) + ' ETB';
+  modal.classList.add('open');
+}
+
+function closeWithdraw(event) {
+  if (event && event.target !== event.currentTarget && !event.target.classList.contains('modal-close')) return;
+  const modal = document.getElementById('withdrawModal');
+  if (modal) modal.classList.remove('open');
+}
+
+function selectWdMethod(method) {
+  wdSelectedMethod = method;
+  document.querySelectorAll('#wdMethodList .method-btn').forEach(b => b.classList.remove('selected'));
+  if (event && event.target) event.target.classList.add('selected');
+}
+
+async function submitWithdraw() {
+  if (!wdSelectedMethod) { showToast('⚠️ ዘዴ ይምረጡ'); return; }
+  const account = document.getElementById('wdAccount').value.trim();
+  const amount = parseFloat(document.getElementById('wdAmount').value);
+
+  if (!account) { showToast('⚠️ የአካውንት ቁጥር ያስፈልጋል'); return; }
+  if (!amount || amount < 50) { showToast('⚠️ ቢያንስ 50 ETB'); return; }
+  if (amount > 10000) { showToast('⚠️ ከ 10,000 በላይ አይቻልም'); return; }
+  if (amount > userBalance) { showToast('💰 ሂሳብ አይበቃም!'); return; }
+
+  if (!confirm('💸 ' + amount.toFixed(2) + ' ETB ወደ ' + account + ' ይውጣ?\n\n⚠️ ጥያቄው Admin ሲያረጋግጥ ገንዘቡ ይላካል።')) return;
+
+  const btn = document.getElementById('wdSubmit');
+  btn.disabled = true;
+  btn.textContent = '⏳ በመላክ ላይ...';
+
+  try {
+    const r = await fetch('/api/withdraw/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: userId, name: userName, amount: amount,
+        method: wdSelectedMethod, account: account
+      })
+    });
+    const data = await r.json();
+    if (data.ok) {
+      showToast('✅ ጥያቄዎ ተልኳል! ሂሳብዎ ተቆጥቧል');
+      closeWithdraw();
+      await fetchBalance();
+    } else {
+      if (data.error === 'insufficient_balance') {
+        showToast('💰 ሂሳብ አይበቃም!');
+      } else {
+        showToast('⚠️ ' + (data.error || 'ስህተት'));
+      }
+    }
+  } catch (e) {
+    showToast('⚠️ የኢንተርኔት ችግር');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ ጥያቄ ላክ';
   }
 }
 
@@ -284,8 +353,7 @@ function inviteFriends() {
 }
 function copyToClipboard(text) {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => showToast('✅ ሊንኩ ተቀድቷል!'))
-      .catch(() => showToast('📤 t.me/Afbingobot'));
+    navigator.clipboard.writeText(text).then(() => showToast('✅ ሊንኩ ተቀድቷል!'));
   }
 }
 
@@ -321,7 +389,7 @@ async function joinGame(cardNum = 0) {
     const data = await r.json();
     if (data.error) {
       if (data.error === 'insufficient_balance') {
-        showToast('💰 ሂሳብ አይበቃም! የሚያስፈልግ: ' + (data.needed || cardPrice).toFixed(2) + ' ETB');
+        showToast('💰 ሂሳብ አይበቃም!');
         showDeposit();
       } else showToast('⚠️ ' + data.error);
       return;
@@ -525,58 +593,4 @@ function renderBoard() {
       else cell.textContent = num;
       if (markedSet.has(r + '-' + c)) cell.classList.add('marked');
       cell.onclick = () => clickCell(r, c);
-      boardEl.appendChild(cell);
-    }
-  }
-}
-
-async function clickCell(r, c) {
-  if (!card || gameOver) return;
-  if (card[r][c] === 'FREE') return;
-  try {
-    const resp = await fetch('/api/mark', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat: roomId, user: userId, r: r, c: c })
-    });
-    const data = await resp.json();
-    if (data.error) {
-      if (data.error === 'not_called') showToast('⚠️ ገና አልተጠራም!');
-      return;
-    }
-    markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
-    renderBoard();
-    if (data.winner && !gameOver) {
-      gameOver = true;
-      const statusEl = document.getElementById('status');
-      if (statusEl) {
-        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
-        statusEl.classList.add('bingo');
-      }
-      launchConfetti();
-      setTimeout(fetchBalance, 1000);
-    }
-  } catch (e) {}
-}
-
-function launchConfetti() {
-  const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
-  const container = document.getElementById('confetti');
-  if (!container) return;
-  for (let i = 0; i < 100; i++) {
-    const piece = document.createElement('div');
-    piece.className = 'confetti-piece';
-    piece.style.left = Math.random() * 100 + '%';
-    piece.style.top = '-10px';
-    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-    piece.style.animationDelay = Math.random() * 0.5 + 's';
-    piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
-    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-    container.appendChild(piece);
-  }
-}
-
-registerUser().then(() => fetchBalance());
-fetchState();
-setInterval(fetchState, 2000);
-setInterval(fetchBalance, 10000);
+   
