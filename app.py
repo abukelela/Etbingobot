@@ -20,7 +20,7 @@ HOUSE_FEE = 0.15
 
 # ============ Game State ============
 games = {}
-games_lock = threading.Lock()
+games_lock = threading.RLock()   # ← ✅ RLock (Re-entrant)
 
 def generate_bingo_card():
     cols = {
@@ -116,20 +116,28 @@ def _payout_winners(room_id, winners):
             uid = w['uid']
             if uid in game['players']:
                 game['players'][uid]['won'] = net_prize
+        # Outside the loop — DB ስራ በ Lock ውስጥ አይሁን
+        for w in winners:
+            uid = w['uid']
             try:
                 add_balance(uid, net_prize, tx_type="win",
                     description=f"BINGO win (tax {tax:.2f})")
-                from database import get_session, User
-                session = get_session()
-                try:
-                    user = session.query(User).filter_by(telegram_id=uid).first()
-                    if user:
-                        user.games_won += 1
-                        session.commit()
-                finally:
-                    session.close()
             except Exception as e:
                 print(f"payout error for {uid}: {e}")
+        # Update winner stats
+        try:
+            from database import get_session, User
+            session = get_session()
+            try:
+                for w in winners:
+                    user = session.query(User).filter_by(telegram_id=w['uid']).first()
+                    if user:
+                        user.games_won += 1
+                session.commit()
+            finally:
+                session.close()
+        except Exception as e:
+            print(f"stats error: {e}")
         print(f"💰 Paid {per_winner:.2f} x {len(winners)} (tax {tax:.2f})")
 
 def _reset_round(room_id):
@@ -299,6 +307,7 @@ def api_join():
         if user_id in game['players']:
             return jsonify({'ok': True, 'already': True})
 
+    # Balance check outside lock
     balance = get_user_balance(user_id)
     if balance < CARD_PRICE:
         return jsonify({
@@ -307,6 +316,7 @@ def api_join():
             'needed': CARD_PRICE
         })
 
+    # Deduct balance (DB ስራ)
     new_bal = add_balance(user_id, -CARD_PRICE, tx_type="bet",
         description=f"Card purchase (#{card_num})")
     if new_bal is None:
@@ -330,9 +340,14 @@ def api_join():
             'won': 0,
         }
         game['total_pool'] = game.get('total_pool', 0) + CARD_PRICE
-        if len(game['players']) == 1 and not game.get('auto'):
-            _reset_round(room_id)
+        is_first = len(game['players']) == 1
+        is_auto = game.get('auto')
 
+    # Reset round outside lock (ከ RLock ቢሆንም ደህንነቱ የተጠበቀ)
+    if is_first and not is_auto:
+        _reset_round(room_id)
+
+    # Update player stats
     try:
         from database import get_session, User
         session = get_session()
