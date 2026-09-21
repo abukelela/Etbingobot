@@ -130,13 +130,38 @@
       <h2>➕ ገንዘብ ማስገባት</h2>
       <button class="modal-close" onclick="closeDeposit()">✕</button>
     </div>
+
     <div class="deposit-body">
-      <div class="deposit-icon">💳</div>
-      <p class="deposit-text">Chapa ጋር ለመክፈል ቅርብ ቀን ይጠብቁ</p>
-      <p class="deposit-sub">በአሁኑ ጊዜ Chapa Integration በመሰራት ላይ ነው።</p>
-      <button class="btn-test" onclick="addTestBalance()">
-        <span>🎁</span> 1000 ETB ለሙከራ
-      </button>
+      <!-- Step 1: Method Selection -->
+      <div id="depStep1">
+        <p class="deposit-step-title">1️⃣ የክፍያ ዘዴ ይምረጡ</p>
+        <div class="method-list" id="methodList"></div>
+      </div>
+
+      <!-- Step 2: Send Money Info -->
+      <div id="depStep2" style="display:none">
+        <p class="deposit-step-title">2️⃣ ገንዘብ ይላኩ</p>
+        <div class="account-box">
+          <div class="account-label">ወደዚህ አካውንት ይላኩ:</div>
+          <div class="account-info" id="accountInfo">—</div>
+          <button class="btn-copy-sm" onclick="copyAccount()">📋 ኮፒ</button>
+        </div>
+
+        <p class="deposit-step-title">3️⃣ የላኩትን መረጃ ያስገቡ</p>
+        <div class="form-group">
+          <label>💵 መጠን (ETB)</label>
+          <input type="number" id="depAmount" placeholder="100" min="10" max="50000" />
+        </div>
+        <div class="form-group">
+          <label>🔖 Reference / Transaction ID</label>
+          <input type="text" id="depRef" placeholder="ለምሳሌ: ABC123456" maxlength="100" />
+        </div>
+
+        <div class="deposit-buttons">
+          <button class="btn-back" onclick="depBack()">← ወደ ኋላ</button>
+          <button class="btn-submit" id="depSubmit" onclick="submitDeposit()">✅ ላክ</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
