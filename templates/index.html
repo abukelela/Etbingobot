@@ -10,26 +10,18 @@
 <body>
 <div class="container">
 
-  <!-- Balance Bar -->
   <div class="balance-bar">
     <div class="balance-left">
       <div class="balance-label">💰 ሂሳብዎ</div>
       <div class="balance-amount" id="balanceAmount">0.00 ETB</div>
     </div>
     <div class="balance-actions">
-      <button class="balance-btn deposit" onclick="showDeposit()" type="button">
-        <span>➕</span>
-      </button>
-      <button class="balance-btn withdraw" onclick="showWithdraw()" type="button">
-        <span>💸</span>
-      </button>
-      <button class="balance-btn history" onclick="showHistory()" type="button">
-        <span>📜</span>
-      </button>
+      <button class="balance-btn deposit" id="btnDeposit">➕</button>
+      <button class="balance-btn withdraw" id="btnWithdraw">💸</button>
+      <button class="balance-btn history" id="btnHistory">📜</button>
     </div>
   </div>
 
-  <!-- Header bar -->
   <div class="header-bar">
     <div class="header-left">
       <div class="player-info" id="playerInfo">👤 ተጫዋች</div>
@@ -38,45 +30,30 @@
     <div class="called-badge" id="calledBadge">📢 0/75</div>
   </div>
 
-  <!-- Round bar -->
   <div class="round-bar">
-    <div class="round-info">
-      <span class="round-num" id="roundNum">🔄 Round 1</span>
-      <span class="round-timer" id="roundTimer">⏰ --:--</span>
-    </div>
+    <span class="round-num" id="roundNum">🔄 Round 1</span>
+    <span class="round-timer" id="roundTimer">⏰ --:--</span>
   </div>
 
-  <!-- Invite -->
   <div class="invite-bar">
-    <button class="btn-invite" onclick="inviteFriends()" type="button">
-      <span>📤</span> ጓደኞችን ጋብዝ
-    </button>
+    <button class="btn-invite" id="btnInvite">📤 ጓደኞችን ጋብዝ</button>
   </div>
 
-  <!-- No Game Screen -->
   <div id="noGameScreen" class="screen">
     <div class="empty-icon">🎱</div>
     <h2>Etbingo</h2>
     <p class="empty-text">አዲስ ጨዋታ ለመጀመር ከታች ይጫኑ</p>
-    <button class="btn-primary" onclick="createGame()" type="button">
-      <span>🎮</span> አዲስ ጨዋታ ጀምር
-    </button>
+    <button class="btn-primary" id="btnCreateGame">🎮 አዲስ ጨዋታ ጀምር</button>
   </div>
 
-  <!-- Pick Card Screen -->
   <div id="pickScreen" class="screen" style="display:none">
     <div class="empty-icon">🎫</div>
     <h2>ካርድዎን ይምረጡ</h2>
     <p class="empty-text">የካርድ ዋጋ: <strong id="cardPrice">10.00</strong> ETB</p>
-    <button class="btn-primary" onclick="openPicker()" type="button">
-      <span>🎫</span> ካርድ ምረጥ
-    </button>
-    <button class="btn-secondary" onclick="joinWithRandom()" type="button">
-      <span>🎲</span> በዘፈቀደ
-    </button>
+    <button class="btn-primary" id="btnOpenPicker">🎫 ካርድ ምረጥ</button>
+    <button class="btn-secondary" id="btnRandom">🎲 በዘፈቀደ</button>
   </div>
 
-  <!-- Game Screen -->
   <div id="gameScreen" class="screen" style="display:none">
     <div class="caller">
       <div class="last-called-label">🎯 የተጠራው ቁጥር</div>
@@ -84,15 +61,9 @@
       <div class="auto-status" id="autoStatus"></div>
     </div>
     <div class="game-controls">
-      <button class="btn-auto" id="autoBtn" onclick="toggleAuto()" type="button">
-        <span id="autoIcon">▶️</span> <span id="autoText">ራስ-ሰር</span>
-      </button>
-      <button class="btn-call" id="callBtn" onclick="drawNumber()" type="button">
-        <span>🔢</span> ጥራ
-      </button>
-      <button class="btn-new" onclick="confirmNewGame()" type="button">
-        <span>🔄</span>
-      </button>
+      <button class="btn-auto" id="btnAuto">▶️ ራስ-ሰር</button>
+      <button class="btn-call" id="btnCall">🔢 ጥራ</button>
+      <button class="btn-new" id="btnNew">🔄</button>
     </div>
     <div id="status"></div>
     <div id="board"></div>
@@ -101,54 +72,44 @@
   </div>
 </div>
 
-<!-- Card Picker Modal -->
-<div id="pickerModal" class="modal" onclick="closePicker(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
+<div id="pickerModal" class="modal">
+  <div class="modal-content">
     <div class="modal-header">
       <h2>🎫 የካርድ ቁጥር ይምረጡ</h2>
-      <button class="modal-close" onclick="closePicker()" type="button">✕</button>
-    </div>
-    <div class="picker-info">
-      <div class="picker-hint">ቁጥር ይምረጡ — ራሱ ካርድዎን ይሰጣል</div>
+      <button class="modal-close" id="closePicker">✕</button>
     </div>
     <div class="number-grid-picker" id="pickerGrid"></div>
   </div>
 </div>
 
-<!-- Transactions Modal -->
-<div id="historyModal" class="modal" onclick="closeHistory(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
+<div id="historyModal" class="modal">
+  <div class="modal-content">
     <div class="modal-header">
       <h2>📜 የግብይት ታሪክ</h2>
-      <button class="modal-close" onclick="closeHistory()" type="button">✕</button>
+      <button class="modal-close" id="closeHistory">✕</button>
     </div>
     <div id="txList" class="tx-list"></div>
   </div>
 </div>
 
-<!-- Deposit Modal -->
-<div id="depositModal" class="modal" onclick="closeDeposit(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
+<div id="depositModal" class="modal">
+  <div class="modal-content">
     <div class="modal-header">
       <h2>➕ ገንዘብ ማስገባት</h2>
-      <button class="modal-close" onclick="closeDeposit()" type="button">✕</button>
+      <button class="modal-close" id="closeDeposit">✕</button>
     </div>
-
     <div class="deposit-body">
       <div id="depStep1">
         <p class="deposit-step-title">1️⃣ የክፍያ ዘዴ ይምረጡ</p>
         <div class="method-list" id="methodList"></div>
       </div>
-
       <div id="depStep2" style="display:none">
         <p class="deposit-step-title">2️⃣ ገንዘብ ይላኩ</p>
         <div class="account-box">
           <div class="account-label">ወደዚህ አካውንት ይላኩ:</div>
           <div class="account-info" id="accountInfo">—</div>
-          <button class="btn-copy-sm" onclick="copyAccount()" type="button">📋 ኮፒ</button>
+          <button class="btn-copy-sm" id="btnCopy">📋 ኮፒ</button>
         </div>
-
-        <p class="deposit-step-title">3️⃣ የላኩትን መረጃ ያስገቡ</p>
         <div class="form-group">
           <label>💵 መጠን (ETB)</label>
           <input type="number" id="depAmount" placeholder="100" min="10" max="50000" />
@@ -157,56 +118,44 @@
           <label>🔖 Reference / Transaction ID</label>
           <input type="text" id="depRef" placeholder="ለምሳሌ: ABC123456" maxlength="100" />
         </div>
-
         <div class="deposit-buttons">
-          <button class="btn-back" onclick="depBack()" type="button">← ወደ ኋላ</button>
-          <button class="btn-submit" id="depSubmit" onclick="submitDeposit()" type="button">✅ ላክ</button>
+          <button class="btn-back" id="btnDepBack">← ወደ ኋላ</button>
+          <button class="btn-submit" id="btnDepSubmit">✅ ላክ</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Withdraw Modal -->
-<div id="withdrawModal" class="modal" onclick="closeWithdraw(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
+<div id="withdrawModal" class="modal">
+  <div class="modal-content">
     <div class="modal-header">
       <h2>💸 ገንዘብ ማውጣት</h2>
-      <button class="modal-close" onclick="closeWithdraw()" type="button">✕</button>
+      <button class="modal-close" id="closeWithdraw">✕</button>
     </div>
-
     <div class="deposit-body">
       <div class="balance-display">
         <div class="balance-display-label">💰 ያለዎ ሂሳብ</div>
         <div class="balance-display-amount" id="wdBalance">0.00 ETB</div>
       </div>
-
       <p class="deposit-step-title">1️⃣ የመውጫ ዘዴ ይምረጡ</p>
       <div class="method-list" id="wdMethodList">
-        <button class="method-btn" onclick="selectWdMethod('telebirr')" type="button">📱 Telebirr</button>
-        <button class="method-btn" onclick="selectWdMethod('cbe')" type="button">🏦 CBE Birr</button>
-        <button class="method-btn" onclick="selectWdMethod('awaash')" type="button">💳 Awaash</button>
+        <button class="method-btn" data-method="telebirr">📱 Telebirr</button>
+        <button class="method-btn" data-method="cbe">🏦 CBE Birr</button>
+        <button class="method-btn" data-method="awaash">💳 Awaash</button>
       </div>
-
-      <p class="deposit-step-title">2️⃣ የአካውንት ቁጥርዎን ያስገቡ</p>
       <div class="form-group">
-        <label>📱 የስልክ / የአካውንት ቁጥር</label>
+        <label>📱 የአካውንት ቁጥር</label>
         <input type="text" id="wdAccount" placeholder="0912345678" maxlength="50" />
       </div>
-
-      <p class="deposit-step-title">3️⃣ የሚያወጡትን መጠን ያስገቡ</p>
       <div class="form-group">
         <label>💵 መጠን (ETB) — ቢያንስ 50</label>
         <input type="number" id="wdAmount" placeholder="100" min="50" max="10000" />
       </div>
-
-      <div class="withdraw-note">
-        ⚠️ ጥያቄዎ ለ Admin ይላካል። ከ 30 ደቂቃ በኋላ ይጠብቁ።
-      </div>
-
+      <div class="withdraw-note">⚠️ ጥያቄዎ ለ Admin ይላካል።</div>
       <div class="deposit-buttons">
-        <button class="btn-back" onclick="closeWithdraw()" type="button">← ሰርዝ</button>
-        <button class="btn-submit" id="wdSubmit" onclick="submitWithdraw()" type="button">✅ ጥያቄ ላክ</button>
+        <button class="btn-back" id="btnWdCancel">← ሰርዝ</button>
+        <button class="btn-submit" id="btnWdSubmit">✅ ጥያቄ ላክ</button>
       </div>
     </div>
   </div>
@@ -215,4 +164,4 @@
 <div id="confetti"></div>
 <script src="/static/script.js"></script>
 </body>
-  </html>
+          </html>
