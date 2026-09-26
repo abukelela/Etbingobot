@@ -484,4 +484,142 @@ async function fetchState() {
     const rt = document.getElementById('roundTimer');
     if (rt) updateRoundTimer(data.round_remaining);
 
-    if (data.ne
+    if (data.needs_join) {
+      showScreen('pick');
+      return;
+    }
+
+    showScreen('game');
+
+    if (data.round_number !== lastRound) {
+      lastRound = data.round_number;
+      gameOver = false;
+      lastCalled = null;
+      const st = document.getElementById('status');
+      if (st) { st.textContent = ''; st.classList.remove('bingo'); }
+      const lc = document.getElementById('lastCalled');
+      if (lc) lc.textContent = '—';
+      const hist = document.getElementById('history');
+      if (hist) hist.innerHTML = '';
+      calledHistory = [];
+      const cf = document.getElementById('confetti');
+      if (cf) cf.innerHTML = '';
+    }
+
+    card = data.card;
+    markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
+
+    if (data.last && data.last !== lastCalled) {
+      lastCalled = data.last;
+      const el = document.getElementById('lastCalled');
+      if (el) {
+        el.textContent = data.last;
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+      }
+    } else if (!data.last) {
+      const el = document.getElementById('lastCalled');
+      if (el) el.textContent = '—';
+    }
+
+    if (data.called.length !== calledHistory.length) {
+      const hist = document.getElementById('history');
+      if (hist) {
+        hist.innerHTML = '';
+        data.called.forEach(n => {
+          const span = document.createElement('span');
+          span.textContent = n;
+          hist.appendChild(span);
+        });
+        hist.scrollTop = hist.scrollHeight;
+      }
+      calledHistory = data.called;
+    }
+
+    if (data.winner && !gameOver) {
+      gameOver = true;
+      const statusEl = document.getElementById('status');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
+      launchConfetti();
+      setTimeout(fetchBalance, 1000);
+    }
+
+    renderBoard();
+    if (Math.random() < 0.25) fetchBalance();
+  } catch (e) { console.log('fetch err', e); }
+}
+
+function updateRoundTimer(seconds) {
+  const el = document.getElementById('roundTimer');
+  if (!el) return;
+  if (seconds === undefined || seconds === null) { el.textContent = '⏰ --'; return; }
+  const s = seconds;
+  el.textContent = '⏰ ' + s + 's';
+  if (seconds <= 15) el.classList.add('urgent');
+  else el.classList.remove('urgent');
+}
+
+function renderBoard() {
+  if (!card) return;
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  boardEl.innerHTML = '';
+  const headers = ['B', 'I', 'N', 'G', 'O'];
+  headers.forEach(letter => {
+    const h = document.createElement('div');
+    h.className = 'header';
+    h.textContent = letter;
+    boardEl.appendChild(h);
+  });
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 5; c++) {
+      const num = card[r][c];
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (num === 'FREE') { cell.textContent = 'FREE'; cell.classList.add('free'); }
+      else cell.textContent = num;
+      if (markedSet.has(r + '-' + c)) cell.classList.add('marked');
+      cell.onclick = () => clickCell(r, c);
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+async function clickCell(r, c) {
+  if (!card || gameOver) return;
+  if (card[r][c] === 'FREE') return;
+  try {
+    const resp = await fetch('/api/mark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat: roomId, user: userId, r: r, c: c })
+    });
+    const data = await resp.json();
+    if (data.error) {
+      if (data.error === 'not_called') showToast('⚠️ ገና አልተጠራም!');
+      return;
+    }
+    markedSet = new Set(data.marked.map(pair => pair[0] + '-' + pair[1]));
+    renderBoard();
+    if (data.winner && !gameOver) {
+      gameOver = true;
+      const statusEl = document.getElementById('status');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
+      launchConfetti();
+      setTimeout(fetchBalance, 1000);
+    }
+  } catch (e) {}
+}
+
+function launchConfetti() {
+  const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
+  const container = document.getElementById('confetti');
+  if (!container) return;
+  for (let i = 0; i < 1
