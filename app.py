@@ -14,9 +14,9 @@ from database import (
 app = Flask(__name__)
 
 # ============ Config ============
-ROUND_DURATION = 300
-BINGO_DELAY = 50
-AUTO_CALL_INTERVAL = 5
+ROUND_DURATION = 300       # BINGO ካልሆነ 5 ደቂቃ
+BINGO_DELAY = 50           # BINGO ሆኖ 50 ሰከንድ → አዲስ round
+AUTO_CALL_INTERVAL = 5     # በየ 5 ሰከንድ ቁጥር ይጠራል
 CARD_PRICE = 10.0
 WINNER_TAX = 0.15
 HOUSE_FEE = 0.15
@@ -254,24 +254,6 @@ def api_transactions():
         return jsonify({'error': 'invalid'})
     txs = get_user_transactions(user_id, limit=20)
     return jsonify({'transactions': txs})
-
-@app.route('/api/user/test_balance', methods=['POST'])
-def api_test_balance():
-    data = request.json or {}
-    try:
-        user_id = int(data.get('user', 0))
-        amount = float(data.get('amount', 1000.0))
-    except (ValueError, TypeError):
-        return jsonify({'error': 'invalid'})
-    if not user_id:
-        return jsonify({'error': 'no_user'})
-    if amount > 10000:
-        return jsonify({'error': 'max_10000'})
-    new_bal = add_balance(user_id, amount, tx_type="bonus",
-        description=f"Test bonus {amount}")
-    if new_bal is None:
-        return jsonify({'error': 'failed'})
-    return jsonify({'ok': True, 'balance': new_bal})
 
 # ============ Deposit ============
 @app.route('/api/deposit/accounts')
