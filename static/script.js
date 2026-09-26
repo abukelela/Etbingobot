@@ -504,4 +504,92 @@ async function fetchState() {
 
     if (data.last && data.last !== lastCalled) {
       lastCalled = data.last;
-      const el = document
+      const el = document.getElementById('lastCalled');
+      if (el) {
+        el.textContent = data.last;
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+      }
+    } else if (!data.last) {
+      const el = document.getElementById('lastCalled');
+      if (el) el.textContent = '—';
+    }
+
+    const autoBtn = document.getElementById('autoBtn');
+    if (autoBtn) {
+      if (data.auto) {
+        autoBtn.classList.add('running');
+        const ai = document.getElementById('autoIcon'); if (ai) ai.textContent = '⏸️';
+        const at = document.getElementById('autoText'); if (at) at.textContent = 'አቁም';
+        const as = document.getElementById('autoStatus'); if (as) as.textContent = '🤖 ራስ-ሰር እየሰራ ነው';
+      } else {
+        autoBtn.classList.remove('running');
+        const ai = document.getElementById('autoIcon'); if (ai) ai.textContent = '▶️';
+        const at = document.getElementById('autoText'); if (at) at.textContent = 'ራስ-ሰር';
+        const as = document.getElementById('autoStatus'); if (as) as.textContent = '';
+      }
+    }
+
+    if (data.called.length !== calledHistory.length) {
+      const hist = document.getElementById('history');
+      if (hist) {
+        hist.innerHTML = '';
+        data.called.forEach(n => {
+          const span = document.createElement('span');
+          span.textContent = n;
+          hist.appendChild(span);
+        });
+        hist.scrollTop = hist.scrollHeight;
+      }
+      calledHistory = data.called;
+    }
+
+    if (data.winner && !gameOver) {
+      gameOver = true;
+      const statusEl = document.getElementById('status');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
+      launchConfetti();
+      setTimeout(fetchBalance, 1000);
+    }
+
+    renderBoard();
+    if (Math.random() < 0.25) fetchBalance();
+  } catch (e) {}
+}
+
+function updateRoundTimer(seconds) {
+  const el = document.getElementById('roundTimer');
+  if (!el) return;
+  if (seconds === undefined || seconds === null) { el.textContent = '⏰ --:--'; return; }
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  el.textContent = '⏰ ' + m + ':' + (s < 10 ? '0' : '') + s;
+  if (seconds <= 30) el.classList.add('urgent');
+  else el.classList.remove('urgent');
+}
+
+function renderBoard() {
+  if (!card) return;
+  const boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  boardEl.innerHTML = '';
+  const headers = ['B', 'I', 'N', 'G', 'O'];
+  headers.forEach(letter => {
+    const h = document.createElement('div');
+    h.className = 'header';
+    h.textContent = letter;
+    boardEl.appendChild(h);
+  });
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 5; c++) {
+      const num = card[r][c];
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (num === 'FREE') { cell.textContent = 'FREE'; cell.classList.add('free'); }
+      else cell.textContent = num;
+      if (markedSet.has(r + '-' + c)) cell.classList.add('marked');
+      cell.addEventListener('click', (funct
