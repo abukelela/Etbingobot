@@ -444,4 +444,117 @@ async function fetchState() {
       var lc = document.getElementById('lastCalled');
       if (lc) lc.textContent = '—';
       var hist = document.getElementById('history');
-      if (hist)
+      if (hist) hist.innerHTML = '';
+      calledHistory = [];
+      var cf = document.getElementById('confetti');
+      if (cf) cf.innerHTML = '';
+    }
+    card = data.card;
+    markedSet = new Set(data.marked.map(function(pair) { return pair[0] + '-' + pair[1]; }));
+    if (data.last && data.last !== lastCalled) {
+      lastCalled = data.last;
+      var el = document.getElementById('lastCalled');
+      if (el) {
+        el.textContent = data.last;
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+      }
+    } else if (!data.last) {
+      var el2 = document.getElementById('lastCalled');
+      if (el2) el2.textContent = '—';
+    }
+    if (data.called.length !== calledHistory.length) {
+      var hist2 = document.getElementById('history');
+      if (hist2) {
+        hist2.innerHTML = '';
+        data.called.forEach(function(n) {
+          var span = document.createElement('span');
+          span.textContent = n;
+          hist2.appendChild(span);
+        });
+        hist2.scrollTop = hist2.scrollHeight;
+      }
+      calledHistory = data.called;
+    }
+    if (data.winner && !gameOver) {
+      gameOver = true;
+      var statusEl = document.getElementById('status');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
+      launchConfetti();
+      setTimeout(fetchBalance, 1000);
+    }
+    renderBoard();
+    if (Math.random() < 0.25) fetchBalance();
+  } catch (e) {}
+}
+
+function renderBoard() {
+  if (!card) return;
+  var boardEl = document.getElementById('board');
+  if (!boardEl) return;
+  boardEl.innerHTML = '';
+  var headers = ['B', 'I', 'N', 'G', 'O'];
+  for (var h = 0; h < headers.length; h++) {
+    var hEl = document.createElement('div');
+    hEl.className = 'header';
+    hEl.textContent = headers[h];
+    boardEl.appendChild(hEl);
+  }
+  for (var r = 0; r < 5; r++) {
+    for (var c = 0; c < 5; c++) {
+      var num = card[r][c];
+      var cell = document.createElement('div');
+      cell.className = 'cell';
+      if (num === 'FREE') { cell.textContent = 'FREE'; cell.classList.add('free'); }
+      else cell.textContent = num;
+      if (markedSet.has(r + '-' + c)) cell.classList.add('marked');
+      cell.setAttribute('data-r', r);
+      cell.setAttribute('data-c', c);
+      cell.onclick = (function(row, col) { return function() { clickCell(row, col); }; })(r, c);
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+async function clickCell(r, c) {
+  if (!card || gameOver) return;
+  if (card[r][c] === 'FREE') return;
+  try {
+    var resp = await fetch('/api/mark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat: roomId, user: userId, r: r, c: c })
+    });
+    var data = await resp.json();
+    if (data.error) {
+      if (data.error === 'not_called') showToast('⚠️ ገና አልተጠራም!');
+      return;
+    }
+    markedSet = new Set(data.marked.map(function(pair) { return pair[0] + '-' + pair[1]; }));
+    renderBoard();
+    if (data.winner && !gameOver) {
+      gameOver = true;
+      var statusEl = document.getElementById('status');
+      if (statusEl) {
+        statusEl.textContent = '🎉 BINGO! ' + data.winner.join(', ');
+        statusEl.classList.add('bingo');
+      }
+      launchConfetti();
+      setTimeout(fetchBalance, 1000);
+    }
+  } catch (e) {}
+}
+
+function launchConfetti() {
+  var colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#95e1d3', '#f38181', '#aa96da'];
+  var container = document.getElementById('confetti');
+  if (!container) return;
+  for (var i = 0; i < 100; i++) {
+    var piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.
