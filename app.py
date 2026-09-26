@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 # ============ Config ============
 ROUND_DURATION = 300
-BINGO_DELAY = 60
+BINGO_DELAY = 50
 AUTO_CALL_INTERVAL = 5
 CARD_PRICE = 10.0
 WINNER_TAX = 0.15
